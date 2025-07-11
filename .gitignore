@@ -231,3 +231,5 @@ docker-compose.*.yml
 
 # Azure
 .azure/
+
+/generated/prisma
