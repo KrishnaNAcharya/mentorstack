@@ -27,8 +27,8 @@ const Sidebar = ({
     { name: "Tags", href: "#" },
     { name: "Articles", href: "#" },
     { name: "Bookmarks", href: "#" },
-    { name: "About Us", href: "#" },
-    { name: "Contact", href: "#" },
+    { name: "About Us", href: "/about" },
+    { name: "Contact", href: "/contact" },
     { name: "Help", href: "#" },
   ],
 }: SidebarProps) => {
