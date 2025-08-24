@@ -1,8 +1,17 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
+<<<<<<< HEAD
 generator client {
   provider = "prisma-client-js"
+=======
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+>>>>>>> aaa24fa6b2b65d5ed93d1ec26ecb25cf260bea40
 }
 
 datasource db {
@@ -10,6 +19,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+<<<<<<< HEAD
 // ENUMs (optional but helpful)
 enum Role {
   mentor
@@ -288,4 +298,11 @@ model Bookmark {
   mentee      Mentee   @relation(fields: [menteeId], references: [id])
 
   @@unique([menteeId, contentType, contentId])
+=======
+model User {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  name      String?
+  createdAt DateTime @default(now())
+>>>>>>> aaa24fa6b2b65d5ed93d1ec26ecb25cf260bea40
 }

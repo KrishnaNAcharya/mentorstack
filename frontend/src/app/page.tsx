@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+<<<<<<< HEAD
 import { useRouter } from "next/navigation";
 import { authAPI } from "@/lib/auth-api";
 
@@ -37,6 +38,11 @@ export default function Home() {
       setLoading(false);
     }
   };
+=======
+
+export default function Home() {
+  const [tab, setTab] = useState<"login" | "signup">("login");
+>>>>>>> aaa24fa6b2b65d5ed93d1ec26ecb25cf260bea40
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 text-slate-700">
@@ -77,6 +83,7 @@ export default function Home() {
           </div>
 
           {/* Form */}
+<<<<<<< HEAD
           {tab === "login" ? (
             <form className="space-y-6" onSubmit={handleLoginSubmit}>
               {error && (
@@ -109,12 +116,33 @@ export default function Home() {
                   required
                   className="w-full p-4 rounded-xl border-2 border-slate-200 bg-slate-50 focus:outline-none focus:border-emerald-500 focus:bg-white transition"
                 />
+=======
+          <form className="space-y-6">
+            <div>
+              <label className="block mb-2 font-medium text-primary-dark">Email address</label>
+              <input
+                type="email"
+                placeholder="Enter your email"
+                className="w-full p-4 rounded-xl border-2 border-slate-200 bg-slate-50 focus:outline-none focus:border-emerald-500 focus:bg-white transition"
+              />
+            </div>
+
+            <div>
+              <label className="block mb-2 font-medium text-primary-dark">Password</label>
+              <input
+                type="password"
+                placeholder="Enter your password"
+                className="w-full p-4 rounded-xl border-2 border-slate-200 bg-slate-50 focus:outline-none focus:border-emerald-500 focus:bg-white transition"
+              />
+              {tab === "login" && (
+>>>>>>> aaa24fa6b2b65d5ed93d1ec26ecb25cf260bea40
                 <a
                   href="#"
                   className="text-primary text-sm font-medium float-right mt-2 hover:underline"
                 >
                   Forgot password?
                 </a>
+<<<<<<< HEAD
               </div>
 
               <button
@@ -144,6 +172,29 @@ export default function Home() {
               </div>
             </div>
           )}
+=======
+              )}
+            </div>
+
+            {tab === "signup" && (
+              <div>
+                <label className="block mb-2 font-medium ">Confirm Password</label>
+                <input
+                  type="password"
+                  placeholder="Confirm your password"
+                  className="w-full p-4 rounded-xl border-2 border-slate-200 bg-slate-50 focus:outline-none focus:border-emerald-500 focus:bg-white transition"
+                />
+              </div>
+            )}
+
+            <button
+              type="submit"
+              className="w-full py-4 mt-4 bg-gradient-to-r bg-primary text-white font-semibold rounded-xl shadow-lg hover:bg-secondary transition"
+            >
+              {tab === "login" ? "Sign in" : "Sign up"}
+            </button>
+          </form>
+>>>>>>> aaa24fa6b2b65d5ed93d1ec26ecb25cf260bea40
 
           {/* Divider */}
           <div className="relative my-8 text-center text-slate-400">
