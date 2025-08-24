@@ -1,4 +1,4 @@
-import express, { Request, Response } from 'express';
+import express from 'express';
 import jwt from 'jsonwebtoken';
 import { prisma } from '../../lib/prisma';
 
@@ -57,6 +57,7 @@ router.get('/', async (req: any, res: any) => {
 });
 
 // Get question by ID
+// @ts-ignore
 router.get('/:id', async (req: any, res: any) => {
   try {
     const questionId = parseInt(req.params.id);
