@@ -1,18 +1,39 @@
 "use client";
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import Layout from '../../components/Layout';
+import { authAPI } from '@/lib/auth-api';
 
 const QuestionForm = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [expectedOutcome, setExpectedOutcome] = useState('');
-  const [selectedTags, setSelectedTags] = useState([]);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [newTag, setNewTag] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const router = useRouter();
 
-  const predefinedTags = ['node.js', 'express', 'authentication', 'typescript', 'api', 'react', 'database', 'frontend', 'backend'];
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const userData = await authAPI.getCurrentUser();
+        if (userData.user.role !== 'mentee') {
+          router.push('/home');
+        }
+      } catch (err) {
+        console.error('Auth check failed:', err);
+        router.push('/');
+      }
+    };
+    checkAuth();
+  }, [router]);
+
+  const predefinedTags = ['node.js', 'express', 'authentication', 'typescript', 'api', 'react', 'database', 'frontend', 'backend', 'javascript', 'python', 'java', 'css', 'html'];
   const recommendedTags = ['api', 'security', 'jwt'];
 
-  const handleTagToggle = (tag) => {
+  const handleTagToggle = (tag: string) => {
     setSelectedTags(prev => 
       prev.includes(tag)
         ? prev.filter(t => t !== tag)
@@ -36,8 +57,30 @@ const QuestionForm = () => {
     }
   };
 
-  const handleSubmit = () => {
-    console.log('Submit question:', { title, description, expectedOutcome, selectedTags });
+  const handleSubmit = async () => {
+    setLoading(true);
+    setError('');
+    
+    try {
+      // For now, we'll use a mock submission since the questions API needs fixing
+      // TODO: Implement actual API call when questions endpoint is fixed
+      console.log('Submitting question:', { 
+        title, 
+        body: `${description}\n\nWhat I've tried:\n${expectedOutcome}`, 
+        tags: selectedTags 
+      });
+      
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Redirect to mentee home page after successful submission
+      router.push('/mentee-home');
+    } catch (err) {
+      console.error('Failed to submit question:', err);
+      setError('Failed to submit question. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const stepTitles = [
@@ -53,66 +96,15 @@ const QuestionForm = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-surface-light via-neutral to-surface-light">
-      <style jsx>{`
-        .floating-card {
-          backdrop-filter: blur(10px);
-          background: rgba(255, 255, 255, 0.95);
-          box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(255, 255, 255, 0.1);
-        }
-        
-        .progress-dot {
-          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        
-        .progress-dot.active {
-          transform: scale(1.1);
-          box-shadow: 0 0 0 4px var(--color-primary-light);
-        }
-        
-        .tag-button {
-          transition: all 0.2s ease;
-          transform: translateY(0);
-        }
-        
-        .tag-button:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-        }
-        
-        .input-field {
-          transition: all 0.3s ease;
-          border: 2px solid transparent;
-          background: rgba(255, 255, 255, 0.8);
-        }
-        
-        .input-field:focus {
-          background: rgba(255, 255, 255, 1);
-          border-color: var(--color-primary);
-          box-shadow: 0 0 0 3px var(--color-primary-light);
-        }
-        
-        .animate-fade-in {
-          animation: fadeIn 0.5s ease-out;
-        }
-        
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(20px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        
-        .glassmorphism {
-          background: rgba(255, 255, 255, 0.1);
-          backdrop-filter: blur(10px);
-          border: 1px solid rgba(255, 255, 255, 0.2);
-        }
-        
-        .shadow-primary {
-          box-shadow: 0 10px 25px -5px var(--color-primary-light), 0 4px 6px -2px var(--color-primary-light);
-        }
-      `}</style>
-
-      <div className="container mx-auto px-4 py-8 max-w-4xl">
+    <Layout>
+      {error && (
+        <div className="fixed top-4 right-4 bg-red-500 text-white px-4 py-2 rounded-lg shadow-lg z-50">
+          {error}
+        </div>
+      )}
+      
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-slate-100 to-slate-50">
+        <div className="container mx-auto px-4 py-8 max-w-4xl">
         {/* Header */}
         <div className="text-center mb-12 animate-fade-in">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-primary rounded-full mb-6 shadow-primary">
@@ -127,7 +119,7 @@ const QuestionForm = () => {
         {/* Enhanced Progress Indicator */}
         <div className="flex items-center justify-center mb-12">
           <div className="flex items-center space-x-8">
-            {[1, 2, 3].map((step, index) => (
+            {[1, 2, 3].map((step) => (
               <div key={step} className="flex items-center">
                 <div className="flex flex-col items-center">
                   <div className={`progress-dot w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg ${
@@ -171,7 +163,7 @@ const QuestionForm = () => {
             <div className="space-y-8 animate-fade-in">
               <div className="space-y-4">
                 <label className="block text-lg font-semibold text-tertiary">
-                  What's your question about?
+                  What&apos;s your question about?
                 </label>
                 <input
                   type="text"
@@ -199,7 +191,7 @@ const QuestionForm = () => {
                 <ul className="space-y-2 text-gray-600">
                   <li className="flex items-start">
                     <span className="text-primary mr-2">•</span>
-                    Be specific about what you're trying to achieve
+                    Be specific about what you&apos;re trying to achieve
                   </li>
                   <li className="flex items-start">
                     <span className="text-primary mr-2">•</span>
@@ -378,23 +370,26 @@ const QuestionForm = () => {
               <button
                 type="button"
                 onClick={currentStep === 3 ? handleSubmit : () => setCurrentStep(prev => Math.min(3, prev + 1))}
-                disabled={!canProceed()}
+                disabled={!canProceed() || loading}
                 className={`flex items-center px-8 py-3 rounded-xl font-medium transition-all ${
-                  canProceed()
+                  canProceed() && !loading
                     ? 'bg-primary text-white hover:bg-primary-dark shadow-primary'
                     : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                 }`}
               >
-                {currentStep === 3 ? 'Post Question' : 'Continue'}
-                <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
+                {loading ? 'Submitting...' : (currentStep === 3 ? 'Post Question' : 'Continue')}
+                {!loading && (
+                  <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                )}
               </button>
             </div>
           </div>
         </div>
       </div>
     </div>
+    </Layout>
   );
 };
 

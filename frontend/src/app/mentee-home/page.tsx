@@ -1,9 +1,78 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import Layout from "../../components/Layout";
+import { authAPI, User, Question } from "@/lib/auth-api";
 
-export default function QuestionPage() {
+export default function MenteeHomePage() {
+  const [questions, setQuestions] = useState<Question[]>([]);
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [activeFilter, setActiveFilter] = useState("Newest");
+  const router = useRouter();
+
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        // Get current user
+        const userData = await authAPI.getCurrentUser();
+        setUser(userData.user);
+
+        // Redirect if not mentee
+        if (userData.user.role !== 'mentee') {
+          router.push('/home');
+          return;
+        }
+
+        // Load questions from API (temporarily using mock data)
+        // const questionsData = await authAPI.getQuestions();
+        // setQuestions(questionsData);
+        
+        // Mock data for now
+        setQuestions([
+          {
+            id: 1,
+            title: "How to get Razorpay API test key without entering my bank details?",
+            tags: ["api", "testing", "flutter"],
+            createdAt: new Date().toISOString(),
+            authorName: "Test User",
+            answerCount: 20
+          },
+          {
+            id: 2,
+            title: "Vue 3, mapbox: create multiple mapboxes with v-for",
+            description: "Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
+            tags: ["vue", "mapbox", "javascript"],
+            createdAt: new Date().toISOString(),
+            authorName: "Another User",
+            answerCount: 5
+          }
+        ]);
+
+      } catch (error) {
+        console.error('Error loading data:', error);
+        // Redirect to login if unauthorized
+        router.push('/');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+  }, [router]);
+
+  if (loading) {
+    return (
+      <Layout>
+        <div className="flex justify-center items-center h-64">
+          <div className="text-lg">Loading...</div>
+        </div>
+      </Layout>
+    );
+  }
+
   return (
     <Layout>
       {/* Feed */}
@@ -15,7 +84,7 @@ export default function QuestionPage() {
             <span className="text-[var(--color-primary-dark)]">
               MentorStack
             </span>
-            , John Doe
+            , {user?.name || 'Mentee'}
           </h2>
 
           {/* Filter Bar */}
@@ -23,8 +92,9 @@ export default function QuestionPage() {
             {["Newest", "Active", "Bountied", "Unanswered"].map((tab) => (
               <button
                 key={tab}
+                onClick={() => setActiveFilter(tab)}
                 className={`px-4 py-2 rounded-full text-sm font-medium transition ${
-                  tab === "Newest"
+                  tab === activeFilter
                     ? "bg-[var(--color-primary)] text-white shadow"
                     : "bg-[var(--color-neutral)] text-[var(--color-tertiary)] border border-[var(--color-neutral-dark)] hover:bg-[var(--color-neutral-dark)]"
                 }`}
@@ -39,17 +109,22 @@ export default function QuestionPage() {
             </Link>
           </div>
 
-          {/* Example Question Card */}
-          <div className="bg-[var(--color-neutral)] p-6 rounded-xl shadow-md mb-6 hover:shadow-lg transition">
+          {/* Questions List */}
+          {questions.map((question) => (
+            <div key={question.id} className="bg-[var(--color-neutral)] p-6 rounded-xl shadow-md mb-6 hover:shadow-lg transition">
               <div className="text-sm text-[var(--color-tertiary-light)] mb-2">
-                @Username
+                @{question.authorName}
               </div>
               <h3 className="font-semibold text-xl mb-3 text-[var(--color-tertiary)] hover:text-[var(--color-primary)] transition">
-                How to get Razorpay API test key without entering my bank
-                details?
+                {question.title}
               </h3>
+              {question.description && (
+                <p className="text-[var(--color-tertiary-light)] text-sm leading-relaxed mb-3">
+                  {question.description}
+                </p>
+              )}
               <div className="flex gap-2 mb-3">
-                {["api", "testing", "flutter"].map((tag) => (
+                {question.tags.map((tag) => (
                   <span
                     key={tag}
                     className="px-3 py-1 text-xs font-medium bg-[var(--color-primary)] text-[var(--color-neutral)] rounded-full"
@@ -59,54 +134,19 @@ export default function QuestionPage() {
                 ))}
               </div>
               <div className="flex justify-between text-sm text-[var(--color-tertiary-light)]">
-                <span>20 Answers</span>
-                <span>2 mins ago</span>
+                <span>{question.answerCount} Answers</span>
+                <span>{question.createdAt}</span>
               </div>
-            {/* Answer Button */}
-            <div className="mt-4 pt-4 border-t border-[var(--color-neutral-dark)]">
-              <Link href="/answer-question?id=1">
-                <button className="bg-[var(--color-primary)] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[var(--color-primary-dark)] transition-colors">
-                  Answer this question
-                </button>
-              </Link>
+              {/* Answer Button */}
+              <div className="mt-4 pt-4 border-t border-[var(--color-neutral-dark)]">
+                <Link href={`/answer-question?id=${question.id}`}>
+                  <button className="bg-[var(--color-primary)] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[var(--color-primary-dark)] transition-colors">
+                    Answer this question
+                  </button>
+                </Link>
+              </div>
             </div>
-          </div>
-
-          {/* Another Example */}
-          <div className="bg-[var(--color-neutral)] p-6 rounded-xl shadow-md mb-6 hover:shadow-lg transition">
-              <div className="text-sm text-[var(--color-tertiary-light)] mb-2">
-                @Username
-              </div>
-              <h3 className="font-semibold text-xl mb-3 text-[var(--color-tertiary)] hover:text-[var(--color-primary)] transition">
-                Vue 3, mapbox: create multiple mapboxes with v-for
-              </h3>
-              <p className="text-[var(--color-tertiary-light)] text-sm leading-relaxed mb-3">
-                Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec
-                ut enim quis libero accumsan malesuada sed nec orci.
-              </p>
-              <div className="flex gap-2 mb-3">
-                {["vue", "mapbox", "javascript"].map((tag) => (
-                  <span
-                    key={tag}
-                    className="px-3 py-1 text-xs font-medium bg-[var(--color-primary)] text-[var(--color-neutral)] rounded-full"
-                  >
-                    {tag}
-                  </span>
-                ))}
-              </div>
-              <div className="flex justify-between text-sm text-[var(--color-tertiary-light)]">
-                <span>5 Answers</span>
-                <span>1 hour ago</span>
-              </div>
-            {/* Answer Button */}
-            <div className="mt-4 pt-4 border-t border-[var(--color-neutral-dark)]">
-              <Link href="/answer-question?id=2">
-                <button className="bg-primary justify-center text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary-dark transition-colors">
-                  Answer this question
-                </button>
-              </Link>
-            </div>
-          </div>
+          ))}
         </div>
 
         {/* Right - Hot Topics + Blogs */}

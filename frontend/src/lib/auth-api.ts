@@ -33,6 +33,42 @@ export interface UserResponse {
   user: User;
 }
 
+export interface MenteeProfile {
+  id: number;
+  name: string;
+  email: string;
+  bio: string;
+  skills: string[];
+  reputation: number;
+  joinedDate: string;
+  questions: Question[];
+  stats: {
+    questionsAsked: number;
+    bookmarksCount: number;
+    mentorshipRequestsCount: number;
+  };
+}
+
+export interface Question {
+  id: number;
+  title: string;
+  description?: string;
+  tags: string[];
+  createdAt: string;
+  authorName: string;
+  answerCount?: number;
+}
+
+export interface UpdateProfileResponse {
+  message: string;
+  profile: {
+    id: number;
+    name: string;
+    bio: string;
+    skills: string[];
+  };
+}
+
 class AuthAPI {
   private getHeaders(includeAuth = false): HeadersInit {
     const headers: HeadersInit = {
@@ -117,6 +153,51 @@ class AuthAPI {
 
   isAuthenticated(): boolean {
     return !!this.getToken();
+  }
+
+  // Mentee profile methods
+  async getMenteeProfile(): Promise<MenteeProfile> {
+    const response = await fetch(`${API_BASE_URL}/mentees/profile/me`, {
+      method: 'GET',
+      headers: this.getHeaders(true),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to get mentee profile');
+    }
+
+    return response.json();
+  }
+
+  async updateMenteeProfile(data: { name: string; bio: string; skills: string[] }): Promise<UpdateProfileResponse> {
+    const response = await fetch(`${API_BASE_URL}/mentees/profile/me`, {
+      method: 'PUT',
+      headers: this.getHeaders(true),
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to update profile');
+    }
+
+    return response.json();
+  }
+
+  // Questions methods
+  async getQuestions(): Promise<Question[]> {
+    const response = await fetch(`${API_BASE_URL}/questions`, {
+      method: 'GET',
+      headers: this.getHeaders(true),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to get questions');
+    }
+
+    return response.json();
   }
 }
 

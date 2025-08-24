@@ -25,8 +25,10 @@ export default function Home() {
       const result = await authAPI.login({ email, password });
       
       // Login successful, redirect based on user role
-      if (result.user.role === 'mentor' || result.user.role === 'mentee') {
-        router.push('/home');
+      if (result.user.role === 'mentee') {
+        router.push('/mentee-home'); // Mentee home page
+      } else if (result.user.role === 'mentor') {
+        router.push('/home'); // Mentor home page
       } else {
         router.push('/home'); // Default to home for any other role
       }

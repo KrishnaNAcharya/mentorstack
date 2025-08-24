@@ -2,6 +2,8 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import authRoutes from './middleware/auth';
+import { menteesRouter } from './routes/mentees';
+// import { questionsRouter } from './routes/questions';
 
 // Load environment variables
 dotenv.config();
@@ -19,6 +21,8 @@ app.use(express.urlencoded({ extended: true }));
 
 // Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/mentees', menteesRouter);
+// app.use('/api/questions', questionsRouter);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
@@ -27,7 +31,18 @@ app.get('/api/health', (req, res) => {
 
 // Add a simple root endpoint for testing
 app.get('/', (req, res) => {
-  res.json({ message: 'MentorStack Backend API', endpoints: ['/api/health', '/api/auth/signup', '/api/auth/login', '/api/auth/me'] });
+  res.json({ 
+    message: 'MentorStack Backend API', 
+    endpoints: [
+      '/api/health', 
+      '/api/auth/signup', 
+      '/api/auth/login', 
+      '/api/auth/me',
+      '/api/mentees',
+      '/api/mentees/profile/me'
+      // '/api/questions'
+    ] 
+  });
 });
 
 app.listen(Number(PORT), '0.0.0.0', () => {
