@@ -3,6 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import authRoutes from './middleware/auth';
 import { menteesRouter } from './routes/mentees';
+import { communitiesRouter } from './routes/communities';
 // import { questionsRouter } from './routes/questions';
 
 // Load environment variables
@@ -22,6 +23,7 @@ app.use(express.urlencoded({ extended: true }));
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/mentees', menteesRouter);
+app.use('/api/communities', communitiesRouter);
 // app.use('/api/questions', questionsRouter);
 
 // Health check endpoint
@@ -39,7 +41,8 @@ app.get('/', (req, res) => {
       '/api/auth/login', 
       '/api/auth/me',
       '/api/mentees',
-      '/api/mentees/profile/me'
+      '/api/mentees/profile/me',
+      '/api/communities'
       // '/api/questions'
     ] 
   });

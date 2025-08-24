@@ -2,23 +2,36 @@
 
 import Link from "next/link";
 
+interface MenuItem {
+  name: string;
+  href: string;
+}
+
+interface SidebarProps {
+  isOpen?: boolean;
+  onClose?: () => void;
+  className?: string;
+  menuItems?: MenuItem[];
+}
+
 const Sidebar = ({
   isOpen = true,
   onClose,
   className = "",
   menuItems = [
-    "Home",
-    "Questions",
-    "Chats",
-    "Community",
-    "Tags",
-    "Articles",
-    "Bookmarks",
-    "About Us",
-    "Contact",
-    "Help",
+    { name: "Home", href: "/mentee-home" },
+    { name: "Questions", href: "/questions" },
+    { name: "Ask Question", href: "/ask-question" },
+    { name: "Community", href: "/community" },
+    { name: "Profile", href: "/profile" },
+    { name: "Tags", href: "#" },
+    { name: "Articles", href: "#" },
+    { name: "Bookmarks", href: "#" },
+    { name: "About Us", href: "#" },
+    { name: "Contact", href: "#" },
+    { name: "Help", href: "#" },
   ],
-}) => {
+}: SidebarProps) => {
   return (
     <>
       {/* Overlay for mobile */}
@@ -57,12 +70,12 @@ const Sidebar = ({
         <nav className="flex flex-col gap-3">
           {menuItems.map((item) => (
             <Link
-              key={item}
-              href="#"
+              key={item.name}
+              href={item.href}
               className="px-3 py-2 rounded-lg transition-colors duration-200 hover:bg-[var(--color-secondary-light)]"
               onClick={onClose} // Close sidebar when clicking a link on mobile
             >
-              {item}
+              {item.name}
             </Link>
           ))}
         </nav>
