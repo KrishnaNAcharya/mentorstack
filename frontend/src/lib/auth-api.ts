@@ -57,9 +57,6 @@ export interface Question {
   createdAt: string;
   authorName: string;
   answerCount?: number;
-  votes?: { voteType: string; userId: number }[];
-  userVote?: 'upvote' | 'downvote' | null;
-  voteScore?: number;
   answers?: Answer[];
 }
 
@@ -69,9 +66,6 @@ export interface Answer {
   content: string;
   authorName: string;
   createdAt: string;
-  votes?: { voteType: string; userId: number }[];
-  userVote?: 'upvote' | 'downvote' | null;
-  voteScore?: number;
 }
 
 export interface Community {
@@ -316,20 +310,21 @@ class AuthAPI {
   //   // Not implemented - questions don't have voting in schema
   // }
 
-  async voteOnAnswer(questionId: number, answerId: number, voteType: 'upvote' | 'downvote'): Promise<{ message: string }> {
-    const response = await fetch(`${API_BASE_URL}/questions/${questionId}/answers/${answerId}/vote`, {
-      method: 'POST',
-      headers: this.getHeaders(true),
-      body: JSON.stringify({ voteType }),
-    });
+  // Note: Answer voting has been disabled in the UI
+  // async voteOnAnswer(questionId: number, answerId: number, voteType: 'upvote' | 'downvote'): Promise<{ message: string }> {
+  //   const response = await fetch(`${API_BASE_URL}/questions/${questionId}/answers/${answerId}/vote`, {
+  //     method: 'POST',
+  //     headers: this.getHeaders(true),
+  //     body: JSON.stringify({ voteType }),
+  //   });
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'Failed to vote on answer');
-    }
+  //   if (!response.ok) {
+  //     const error = await response.json();
+  //     throw new Error(error.message || 'Failed to vote on answer');
+  //   }
 
-    return response.json();
-  }
+  //   return response.json();
+  // }
 
   async submitAnswer(questionId: number, content: string): Promise<{ message: string; answer: Answer }> {
     const response = await fetch(`${API_BASE_URL}/questions/${questionId}/answers`, {

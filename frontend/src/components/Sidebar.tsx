@@ -19,7 +19,7 @@ const Sidebar = ({
   onClose,
   className = "",
   menuItems = [
-    { name: "Home", href: "/mentee-home" },
+    { name: "Home", href: "/home" },
     { name: "Questions", href: "/questions" },
     { name: "Community", href: "/community" },
     { name: "Profile", href: "/profile" },

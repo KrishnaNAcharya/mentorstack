@@ -56,23 +56,6 @@ export default function QuestionDetailPage() {
     loadQuestion();
   }, [questionId, router]);
 
-  const handleVoteAnswer = async (answerId: number, voteType: 'upvote' | 'downvote') => {
-    try {
-      await authAPI.voteOnAnswer(questionId, answerId, voteType);
-      // Reload question to get updated vote state
-      const questionData = await authAPI.getQuestion(questionId);
-      setQuestion(questionData);
-    } catch (err) {
-      console.error('Failed to vote on answer:', err);
-    }
-  };
-
-  const calculateVoteScore = (votes: { voteType: string }[]): number => {
-    if (!votes) return 0;
-    return votes.filter(v => v.voteType === 'upvote').length - 
-           votes.filter(v => v.voteType === 'downvote').length;
-  };
-
   // Rich text formatting functions
   const insertAtCursor = useCallback(
     (before: string, after: string = "", placeholder: string = "") => {
@@ -346,35 +329,6 @@ export default function QuestionDetailPage() {
         <div className="bg-white rounded-xl shadow-sm border border-gray-200">
           <div className="p-8">
             <div className="flex items-start gap-6">
-              {/* Question Voting Section - Disabled (no voting in schema) */}
-              <div className="flex flex-col items-center space-y-2">
-                <button
-                  disabled={true}
-                  className="p-3 rounded-full text-gray-300 cursor-not-allowed"
-                  title="Question voting not available"
-                  aria-label="Question voting not available"
-                >
-                  <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"/>
-                  </svg>
-                </button>
-                
-                <span className="text-lg font-bold text-gray-300">
-                  0
-                </span>
-                
-                <button
-                  disabled={true}
-                  className="p-3 rounded-full text-gray-300 cursor-not-allowed"
-                  title="Question voting not available"
-                  aria-label="Question voting not available"
-                >
-                  <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6z"/>
-                  </svg>
-                </button>
-              </div>
-
               {/* Question Content */}
               <div className="flex-1">
                 {/* Question Header */}
@@ -421,39 +375,6 @@ export default function QuestionDetailPage() {
                   {question.answers.map((answer) => (
                     <div key={answer.id} className="bg-gray-50 p-6 rounded-lg">
                       <div className="flex items-start gap-4">
-                        {/* Answer Voting Section */}
-                        <div className="flex flex-col items-center space-y-1">
-                          <button
-                            onClick={() => handleVoteAnswer(answer.id, 'upvote')}
-                            className={`p-2 rounded-full hover:bg-gray-100 transition-colors ${
-                              answer.userVote === 'upvote' ? 'text-purple-600' : 'text-gray-400'
-                            }`}
-                            title="Upvote answer"
-                            aria-label="Upvote answer"
-                          >
-                            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                              <path d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"/>
-                            </svg>
-                          </button>
-                          
-                          <span className="text-sm font-medium text-gray-700">
-                            {answer.voteScore || calculateVoteScore(answer.votes || [])}
-                          </span>
-                          
-                          <button
-                            onClick={() => handleVoteAnswer(answer.id, 'downvote')}
-                            className={`p-2 rounded-full hover:bg-gray-100 transition-colors ${
-                              answer.userVote === 'downvote' ? 'text-red-600' : 'text-gray-400'
-                            }`}
-                            title="Downvote answer"
-                            aria-label="Downvote answer"
-                          >
-                            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                              <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6z"/>
-                            </svg>
-                          </button>
-                        </div>
-
                         {/* Answer Content */}
                         <div className="flex-1">
                           <div className="mb-4">

@@ -105,6 +105,31 @@ router.get('/', async (req: any, res: any) => {
   }
 });
 
+// Get popular tags/categories - MUST come before /:id route
+router.get('/tags/popular', async (req: any, res: any) => {
+  try {
+    // Since we don't have a dedicated tags table, we'll return predefined categories
+    // In a real app, you might extract tags from article content or have a separate tags system
+    const popularTags = [
+      { name: 'Web Development', count: 45, color: 'bg-blue-100' },
+      { name: 'AI', count: 32, color: 'bg-purple-100' },
+      { name: 'Cybersecurity', count: 28, color: 'bg-green-100' },
+      { name: 'IoT', count: 25, color: 'bg-yellow-100' },
+      { name: 'Frontend', count: 22, color: 'bg-pink-100' },
+      { name: 'Backend', count: 20, color: 'bg-indigo-100' },
+      { name: 'NLP', count: 18, color: 'bg-gray-100' },
+      { name: 'Machine Learning', count: 15, color: 'bg-red-100' },
+      { name: 'DevOps', count: 12, color: 'bg-teal-100' },
+      { name: 'Mobile Development', count: 10, color: 'bg-orange-100' }
+    ];
+
+    res.json(popularTags);
+  } catch (error) {
+    console.error('Error fetching popular tags:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 // Get article by ID
 router.get('/:id', async (req: any, res: any) => {
   try {
@@ -290,31 +315,6 @@ router.post('/:id/vote', authenticateToken, async (req: any, res: any) => {
 
   } catch (error) {
     console.error('Error voting on article:', error);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
-
-// Get popular tags/categories
-router.get('/tags/popular', async (req: any, res: any) => {
-  try {
-    // Since we don't have a dedicated tags table, we'll return predefined categories
-    // In a real app, you might extract tags from article content or have a separate tags system
-    const popularTags = [
-      { name: 'Web Development', count: 45, color: 'bg-blue-100' },
-      { name: 'AI', count: 32, color: 'bg-purple-100' },
-      { name: 'Cybersecurity', count: 28, color: 'bg-green-100' },
-      { name: 'IoT', count: 25, color: 'bg-yellow-100' },
-      { name: 'Frontend', count: 22, color: 'bg-pink-100' },
-      { name: 'Backend', count: 20, color: 'bg-indigo-100' },
-      { name: 'NLP', count: 18, color: 'bg-gray-100' },
-      { name: 'Machine Learning', count: 15, color: 'bg-red-100' },
-      { name: 'DevOps', count: 12, color: 'bg-teal-100' },
-      { name: 'Mobile Development', count: 10, color: 'bg-orange-100' }
-    ];
-
-    res.json(popularTags);
-  } catch (error) {
-    console.error('Error fetching popular tags:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });

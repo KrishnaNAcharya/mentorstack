@@ -92,35 +92,6 @@ export default function MenteeHomePage() {
           {questions.map((question) => (
             <div key={question.id} className="bg-[var(--color-neutral)] p-6 rounded-xl shadow-md mb-6 hover:shadow-lg transition">
               <div className="flex items-start gap-4">
-                {/* Voting Section - Disabled (no voting in schema) */}
-                <div className="flex flex-col items-center space-y-1 pt-2">
-                  <button
-                    disabled={true}
-                    className="p-2 rounded-full text-gray-300 cursor-not-allowed"
-                    title="Question voting not available"
-                    aria-label="Question voting not available"
-                  >
-                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"/>
-                    </svg>
-                  </button>
-                  
-                  <span className="text-sm font-medium text-gray-300">
-                    0
-                  </span>
-                  
-                  <button
-                    disabled={true}
-                    className="p-2 rounded-full text-gray-300 cursor-not-allowed"
-                    title="Question voting not available"
-                    aria-label="Question voting not available"
-                  >
-                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6z"/>
-                    </svg>
-                  </button>
-                </div>
-
                 {/* Question Content */}
                 <div className="flex-1">
                   <div className="text-sm text-[var(--color-tertiary-light)] mb-2">
