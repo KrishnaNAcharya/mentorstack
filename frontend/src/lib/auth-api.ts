@@ -76,10 +76,17 @@ export interface Community {
   createdBy: number;
   createdAt: string;
   updatedAt: string;
+  memberSkills?: string[]; // Real-time skills from members
   _count: {
     members: number;
     posts: number;
   };
+}
+
+export interface CommunityCategory {
+  name: string;
+  count: number;
+  communities: string[];
 }
 
 export interface CommunityPost {
@@ -139,6 +146,7 @@ export interface Article {
   authorAvatar?: string;
   upvotes: number;
   downvotes: number;
+  tags?: string[];
   createdAt: string;
   updatedAt: string;
 }
@@ -305,6 +313,21 @@ class AuthAPI {
     return response.json();
   }
 
+  async submitQuestion(title: string, body: string, tags: string[]): Promise<{ message: string; question: Question }> {
+    const response = await fetch(`${API_BASE_URL}/questions`, {
+      method: 'POST',
+      headers: this.getHeaders(true),
+      body: JSON.stringify({ title, body, tags }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to submit question');
+    }
+
+    return response.json();
+  }
+
   // Note: Questions don't have voting system in current schema
   // async voteOnQuestion(questionId: number, voteType: 'upvote' | 'downvote'): Promise<{ message: string }> {
   //   // Not implemented - questions don't have voting in schema
@@ -343,7 +366,7 @@ class AuthAPI {
 
   // Community methods
   async getCommunities(): Promise<Community[]> {
-    const response = await fetch(`${API_BASE_URL}/communities`, {
+    const response = await fetch(`${API_BASE_URL}/communities?includeSkills=true`, {
       method: 'GET',
       headers: this.getHeaders(),
     });
@@ -351,6 +374,20 @@ class AuthAPI {
     if (!response.ok) {
       const error = await response.json();
       throw new Error(error.message || 'Failed to get communities');
+    }
+
+    return response.json();
+  }
+
+  async getCommunityCategories(): Promise<CommunityCategory[]> {
+    const response = await fetch(`${API_BASE_URL}/communities/categories`, {
+      method: 'GET',
+      headers: this.getHeaders(),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to get community categories');
     }
 
     return response.json();
@@ -564,6 +601,56 @@ class AuthAPI {
     if (!response.ok) {
       const error = await response.json();
       throw new Error(error.message || 'Failed to create article');
+    }
+
+    return response.json();
+  }
+
+  // Tags methods
+  async getTagContent(tagName: string): Promise<{
+    tagName: string;
+    stats: {
+      totalArticles: number;
+      totalQuestions: number;
+      totalContent: number;
+    };
+    articles: Article[];
+    questions: Question[];
+    relatedTags: Array<{
+      name: string;
+      articleCount: number;
+      questionCount: number;
+      totalCount: number;
+    }>;
+  }> {
+    const response = await fetch(`${API_BASE_URL}/tags/${encodeURIComponent(tagName)}/content`, {
+      method: 'GET',
+      headers: this.getHeaders(),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to fetch tag content');
+    }
+
+    return response.json();
+  }
+
+  async getAllTags(): Promise<Array<{
+    name: string;
+    articleCount: number;
+    questionCount: number;
+    totalCount: number;
+    color: string;
+  }>> {
+    const response = await fetch(`${API_BASE_URL}/tags/all`, {
+      method: 'GET',
+      headers: this.getHeaders(),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to fetch tags');
     }
 
     return response.json();

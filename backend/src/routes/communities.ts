@@ -31,11 +31,94 @@ const authenticateToken = (req: any, res: any, next: any) => {
   });
 };
 
-// Get all communities
+// Get community categories based on real-time skills
+router.get('/categories', async (req: any, res: any) => {
+  try {
+    // Get all communities with their skills
+    const communities = await prisma.community.findMany({
+      include: {
+        members: true,
+        _count: {
+          select: {
+            members: true,
+            posts: true
+          }
+        }
+      }
+    });
+
+    // Aggregate all skills from communities and their members
+    const skillCounts: Record<string, { count: number; communities: string[] }> = {};
+
+    for (const community of communities) {
+      const allSkills: string[] = [...community.skills];
+      
+      // Get skills from all members
+      for (const member of community.members) {
+        try {
+          if (member.userRole === 'mentor') {
+            const mentor = await prisma.mentor.findUnique({
+              where: { id: member.userId },
+              select: { skills: true }
+            });
+            if (mentor?.skills) {
+              allSkills.push(...mentor.skills);
+            }
+          } else if (member.userRole === 'mentee') {
+            const mentee = await prisma.mentee.findUnique({
+              where: { id: member.userId },
+              select: { skills: true }
+            });
+            if (mentee?.skills) {
+              allSkills.push(...mentee.skills);
+            }
+          }
+        } catch (error) {
+          console.error(`Error fetching skills for member ${member.userId}:`, error);
+        }
+      }
+
+      // Count each skill
+      const uniqueSkills = [...new Set(allSkills)];
+      for (const skill of uniqueSkills) {
+        if (!skillCounts[skill]) {
+          skillCounts[skill] = { count: 0, communities: [] };
+        }
+        skillCounts[skill].count += 1;
+        skillCounts[skill].communities.push(community.name);
+      }
+    }
+
+    // Convert to array and sort by count
+    const categories = Object.entries(skillCounts)
+      .map(([skill, data]) => ({
+        name: skill,
+        count: data.count,
+        communities: data.communities.slice(0, 3) // Show up to 3 example communities
+      }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 20); // Top 20 categories
+
+    res.json(categories);
+  } catch (error) {
+    console.error('Error fetching community categories:', error);
+    res.status(500).json({ error: 'Failed to fetch community categories' });
+  }
+});
+
+// Get all communities with real-time skills from members
 router.get('/', async (req: any, res: any) => {
   try {
     const communities = await prisma.community.findMany({
       include: {
+        members: {
+          include: {
+            // Include member details to get their skills
+            ...(req.query.includeSkills === 'true' && {
+              // We'll need to fetch member skills based on their role
+            })
+          }
+        },
         _count: {
           select: {
             members: true,
@@ -48,7 +131,48 @@ router.get('/', async (req: any, res: any) => {
       }
     });
 
-    res.json(communities);
+    // For each community, aggregate skills from all members
+    const communitiesWithRealTimeSkills = await Promise.all(
+      communities.map(async (community) => {
+        const memberSkills: string[] = [];
+        
+        // Get skills from all members
+        for (const member of community.members) {
+          try {
+            if (member.userRole === 'mentor') {
+              const mentor = await prisma.mentor.findUnique({
+                where: { id: member.userId },
+                select: { skills: true }
+              });
+              if (mentor?.skills) {
+                memberSkills.push(...mentor.skills);
+              }
+            } else if (member.userRole === 'mentee') {
+              const mentee = await prisma.mentee.findUnique({
+                where: { id: member.userId },
+                select: { skills: true }
+              });
+              if (mentee?.skills) {
+                memberSkills.push(...mentee.skills);
+              }
+            }
+          } catch (error) {
+            console.error(`Error fetching skills for member ${member.userId}:`, error);
+          }
+        }
+
+        // Combine community's original skills with member skills
+        const allSkills = [...new Set([...community.skills, ...memberSkills])];
+        
+        return {
+          ...community,
+          skills: allSkills,
+          memberSkills: memberSkills // Keep track of member-contributed skills
+        };
+      })
+    );
+
+    res.json(communitiesWithRealTimeSkills);
   } catch (error) {
     console.error('Error fetching communities:', error);
     res.status(500).json({ error: 'Failed to fetch communities' });

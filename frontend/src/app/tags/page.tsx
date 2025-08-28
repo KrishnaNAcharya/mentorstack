@@ -19,8 +19,14 @@ export default function Tags() {
   const fetchTags = async () => {
     try {
       setLoading(true);
-      const popularTags = await authAPI.getPopularTags();
-      setTags(popularTags);
+      const allTags = await authAPI.getAllTags();
+      // Map the new format to the existing Tag interface
+      const mappedTags = allTags.map(tag => ({
+        name: tag.name,
+        count: tag.totalCount,
+        color: tag.color
+      }));
+      setTags(mappedTags);
       setError(null);
     } catch (err) {
       console.error('Error fetching tags:', err);
@@ -35,8 +41,8 @@ export default function Tags() {
   );
 
   const handleTagClick = (tagName: string) => {
-    // Navigate to articles filtered by this tag
-    router.push(`/articles?category=${encodeURIComponent(tagName)}`);
+    // Navigate to the unified tag detail page
+    router.push(`/tags/${encodeURIComponent(tagName)}`);
   };
 
   return (
@@ -50,7 +56,7 @@ export default function Tags() {
                 Explore Topics
               </h1>
               <p className="text-lg text-slate-600 max-w-2xl mx-auto">
-                Discover articles and content organized by topics and skills
+                Discover articles, questions, and community discussions organized by topics and skills
               </p>
             </div>
           </div>
@@ -128,7 +134,7 @@ export default function Tags() {
                       {tag.name}
                     </h3>
                     <p className="text-sm text-slate-600">
-                      {tag.count} {tag.count === 1 ? 'article' : 'articles'}
+                      {tag.count} {tag.count === 1 ? 'item' : 'items'}
                     </p>
                   </div>
                 </div>
@@ -145,67 +151,6 @@ export default function Tags() {
               <p className="text-slate-500">Try adjusting your search terms</p>
             </div>
           )}
-        </div>
-
-        {/* Additional Sections */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
-          <div className="grid md:grid-cols-2 gap-8">
-            {/* Featured Topics */}
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-              <h3 className="text-xl font-bold text-slate-800 mb-4">Featured Topics</h3>
-              <div className="space-y-3">
-                {tags.slice(0, 5).map((tag, index) => (
-                  <div 
-                    key={index}
-                    onClick={() => handleTagClick(tag.name)}
-                    className="flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 cursor-pointer transition-colors"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className={`w-3 h-3 rounded-full ${tag.color.replace('bg-', 'bg-').replace('-100', '-500')}`}></div>
-                      <span className="font-medium text-slate-700">{tag.name}</span>
-                    </div>
-                    <span className="text-sm text-slate-500">{tag.count}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Recent Activity */}
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-              <h3 className="text-xl font-bold text-slate-800 mb-4">Trending Now</h3>
-              <div className="space-y-3">
-                <div className="flex items-center gap-3 p-3 rounded-lg bg-emerald-50">
-                  <div className="w-8 h-8 bg-emerald-100 rounded-full flex items-center justify-center">
-                    <span className="text-emerald-600 text-sm">🔥</span>
-                  </div>
-                  <div>
-                    <p className="font-medium text-slate-800">Web Development</p>
-                    <p className="text-sm text-slate-500">+15 new articles this week</p>
-                  </div>
-                </div>
-                
-                <div className="flex items-center gap-3 p-3 rounded-lg bg-blue-50">
-                  <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                    <span className="text-blue-600 text-sm">⚡</span>
-                  </div>
-                  <div>
-                    <p className="font-medium text-slate-800">AI & Machine Learning</p>
-                    <p className="text-sm text-slate-500">+12 new articles this week</p>
-                  </div>
-                </div>
-                
-                <div className="flex items-center gap-3 p-3 rounded-lg bg-purple-50">
-                  <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
-                    <span className="text-purple-600 text-sm">🚀</span>
-                  </div>
-                  <div>
-                    <p className="font-medium text-slate-800">Cybersecurity</p>
-                    <p className="text-sm text-slate-500">+8 new articles this week</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
     </Layout>

@@ -38,6 +38,11 @@ export default function QuestionDetailPage() {
   const editorRef = useRef<HTMLTextAreaElement>(null);
   const codeEditorRef = useRef<HTMLTextAreaElement>(null);
 
+  // Summarize feature state
+  const [summary, setSummary] = useState("");
+  const [summarizeLoading, setSummarizeLoading] = useState(false);
+  const [showSummary, setShowSummary] = useState(false);
+
   useEffect(() => {
     const loadQuestion = async () => {
       if (!questionId) return;
@@ -55,6 +60,30 @@ export default function QuestionDetailPage() {
 
     loadQuestion();
   }, [questionId, router]);
+
+  const handleSummarizeAnswers = async () => {
+    if (!question?.answers || question.answers.length === 0) return;
+    setSummarizeLoading(true);
+    setShowSummary(false);
+    setSummary("");
+    try {
+      const answers = question.answers.map(a => a.content);
+      const res = await fetch("http://localhost:5000/api/summarize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ answers }),
+      });
+      if (!res.ok) throw new Error("Failed to fetch summary");
+      const data = await res.json();
+      setSummary(data.summary);
+      setShowSummary(true);
+    } catch (err) {
+      setSummary("Error generating summary.");
+      setShowSummary(true);
+    } finally {
+      setSummarizeLoading(false);
+    }
+  };
 
   // Rich text formatting functions
   const insertAtCursor = useCallback(
@@ -244,7 +273,7 @@ export default function QuestionDetailPage() {
     // Links
     html = html.replace(
       /\[([^\]]+)\]\(([^)]+)\)/g,
-      '<a href="$2" class="text-blue-600 hover:text-blue-800 hover:underline font-medium" target="_blank">$1</a>'
+      '<a href="$2" class="text-primary hover:text-primary-light-100 hover:underline font-medium" target="_blank">$1</a>'
     );
 
     // Images
@@ -366,9 +395,51 @@ export default function QuestionDetailPage() {
 
             {/* Answers Section */}
             <div className="border-t border-gray-200 pt-8 mt-8">
-              <h2 className="text-2xl font-bold text-gray-900 mb-6">
-                {question.answers?.length || 0} Answer{(question.answers?.length || 0) !== 1 ? 's' : ''}
-              </h2>
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-gray-900">
+                  {question.answers?.length || 0} Answer{(question.answers?.length || 0) !== 1 ? 's' : ''}
+                </h2>
+                {question.answers && question.answers.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleSummarizeAnswers}
+                    disabled={summarizeLoading}
+                    className="bg-primary-light hover:bg-primary-light-100 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors disabled:bg-indigo-300"
+                  >
+                    {summarizeLoading ? (
+                      <>
+                        <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="bg-primary" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Summarizing...
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                        Summarize Answers
+                      </>
+                    )}
+                  </button>
+                )}
+              </div>
+
+              {/* Summary Card */}
+              {showSummary && summary && (
+                <div className="bg-secondary-light-100 border border-primary rounded-xl p-6 mb-8 animate-fade-in">
+                  <h3 className="font-semibold text-primary mb-2 flex items-center gap-2">
+                    <svg className="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                    </svg>
+                    AI Summary
+                  </h3>
+                  <div className="text-primary-100 leading-relaxed whitespace-pre-line text-base">
+                    {summary}
+                  </div>
+                </div>
+              )}
 
               {question.answers && question.answers.length > 0 ? (
                 <div className="space-y-6">
@@ -411,7 +482,7 @@ export default function QuestionDetailPage() {
                       onClick={() => setShowPreview(false)}
                       className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
                         !showPreview
-                          ? "bg-white text-blue-600 shadow-sm"
+                          ? "bg-white text-primary shadow-sm"
                           : "text-gray-600 hover:text-gray-800"
                       }`}
                     >
@@ -421,7 +492,7 @@ export default function QuestionDetailPage() {
                       onClick={() => setShowPreview(true)}
                       className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
                         showPreview
-                          ? "bg-white text-blue-600 shadow-sm"
+                          ? "bg-white text-primary shadow-sm"
                           : "text-gray-600 hover:text-gray-800"
                       }`}
                     >
@@ -685,7 +756,7 @@ export default function QuestionDetailPage() {
                   {/* Formatting Tips */}
                   <div className="bg-blue-50 rounded-lg p-4">
                     <h4 className="font-semibold text-gray-900 mb-3 flex items-center">
-                      <Lightbulb className="w-5 h-5 mr-2 text-blue-600" />
+                      <Lightbulb className="w-5 h-5 mr-2 text-primary" />
                       Formatting Tips
                     </h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-gray-600">
