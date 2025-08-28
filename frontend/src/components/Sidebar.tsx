@@ -22,6 +22,7 @@ const Sidebar = ({
     { name: "Home", href: "/home" },
     { name: "Questions", href: "/questions" },
     { name: "Mentors", href: "/mentor-list" },
+    { name: "Chats", href: "/chats" },
     { name: "Community", href: "/community" },
     { name: "Profile", href: "/profile" },
     { name: "Tags", href: "/tags" },

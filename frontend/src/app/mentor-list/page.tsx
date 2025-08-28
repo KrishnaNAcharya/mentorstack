@@ -107,14 +107,14 @@ const MentorsPage = () => {
                     {filteredMentors.map((mentor) => (
                         <div
                             key={mentor.id}
-                            className="rounded-2xl p-6 shadow-sm hover:shadow-md transition-all duration-200 border border-gray-200"
+                            className="rounded-2xl p-6 shadow-sm hover:shadow-md flex flex-col justify-between transition-all duration-200 border border-gray-200"
                             style={{ backgroundColor: "var(--color-neutral)" }}
                         >
                             <div className="flex items-start space-x-4">
                                 {/* Avatar */}
                                 <div
-                                    className="w-16 h-16 rounded-full flex items-center justify-center text-white text-lg font-semibold"
-                                    style={{ backgroundColor: "var(--color-primary)" }}
+                                    className="w-16 h-16 rounded-full flex items-center justify-center text-tertiary text-lg font-semibold"
+                                    style={{ backgroundColor: "var(--color-surface)" }}
                                 >
                                     {getInitials(mentor.name)}
                                 </div>
