@@ -1,8 +1,36 @@
 import express from 'express';
 import jwt from 'jsonwebtoken';
+import multer, { FileFilterCallback } from 'multer';
+import path from 'path';
+import { Request } from 'express';
 import { prisma } from '../../lib/prisma';
 
 const router = express.Router();
+
+// Configure multer for file uploads
+const storage = multer.diskStorage({
+  destination: (req: Request, file: Express.Multer.File, cb: (error: Error | null, destination: string) => void) => {
+    cb(null, 'uploads/articles/'); // Make sure this directory exists
+  },
+  filename: (req: Request, file: Express.Multer.File, cb: (error: Error | null, filename: string) => void) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const upload = multer({ 
+  storage: storage,
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB limit
+  },
+  fileFilter: (req: Request, file: Express.Multer.File, cb: FileFilterCallback) => {
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed!'));
+    }
+  }
+});
 
 // Middleware to verify JWT token
 const authenticateToken = (req: any, res: any, next: any) => {
@@ -22,7 +50,7 @@ const authenticateToken = (req: any, res: any, next: any) => {
   });
 };
 
-// Get all articles
+// Get all articles with proper category filtering
 router.get('/', async (req: any, res: any) => {
   try {
     const page = parseInt(req.query.page as string) || 1;
@@ -34,12 +62,16 @@ router.get('/', async (req: any, res: any) => {
     
     // Filter by category/tag if provided
     if (category && category !== 'all') {
-      // For now, we'll search in content for category keywords
-      // In a real app, you might have a separate categories table
-      whereClause.OR = [
-        { title: { contains: category, mode: 'insensitive' } },
-        { content: { contains: category, mode: 'insensitive' } }
-      ];
+      whereClause.tags = {
+        some: {
+          tag: {
+            name: {
+              contains: category.toLowerCase(),
+              mode: 'insensitive'
+            }
+          }
+        }
+      };
     }
 
     const articles = await prisma.article.findMany({
@@ -53,6 +85,15 @@ router.get('/', async (req: any, res: any) => {
           }
         },
         votes: true,
+        tags: {
+          include: {
+            tag: {
+              select: {
+                name: true
+              }
+            }
+          }
+        },
         _count: {
           select: {
             votes: true
@@ -80,6 +121,7 @@ router.get('/', async (req: any, res: any) => {
         authorAvatar: article.author.avatarUrl,
         upvotes,
         downvotes,
+        tags: article.tags.map(at => at.tag.name),
         createdAt: article.createdAt,
         updatedAt: article.updatedAt
       };
@@ -108,20 +150,58 @@ router.get('/', async (req: any, res: any) => {
 // Get popular tags/categories - MUST come before /:id route
 router.get('/tags/popular', async (req: any, res: any) => {
   try {
-    // Since we don't have a dedicated tags table, we'll return predefined categories
-    // In a real app, you might extract tags from article content or have a separate tags system
-    const popularTags = [
-      { name: 'Web Development', count: 45, color: 'bg-blue-100' },
-      { name: 'AI', count: 32, color: 'bg-purple-100' },
-      { name: 'Cybersecurity', count: 28, color: 'bg-green-100' },
-      { name: 'IoT', count: 25, color: 'bg-yellow-100' },
-      { name: 'Frontend', count: 22, color: 'bg-pink-100' },
-      { name: 'Backend', count: 20, color: 'bg-indigo-100' },
-      { name: 'NLP', count: 18, color: 'bg-gray-100' },
-      { name: 'Machine Learning', count: 15, color: 'bg-red-100' },
-      { name: 'DevOps', count: 12, color: 'bg-teal-100' },
-      { name: 'Mobile Development', count: 10, color: 'bg-orange-100' }
+    // Get actual tags from the database with article counts
+    const tagsWithCounts = await prisma.tag.findMany({
+      include: {
+        _count: {
+          select: {
+            articles: true
+          }
+        }
+      },
+      orderBy: {
+        articles: {
+          _count: 'desc'
+        }
+      },
+      take: 20 // Top 20 tags
+    });
+
+    const colors = [
+      'bg-blue-100', 'bg-purple-100', 'bg-green-100', 'bg-yellow-100',
+      'bg-pink-100', 'bg-indigo-100', 'bg-gray-100', 'bg-red-100',
+      'bg-teal-100', 'bg-orange-100'
     ];
+
+    const popularTags = tagsWithCounts.map((tag, index) => ({
+      name: tag.name,
+      count: tag._count.articles,
+      color: colors[index % colors.length]
+    }));
+
+    // If we don't have enough tags, add some default ones
+    if (popularTags.length < 10) {
+      const defaultTags = [
+        { name: 'Web Development', count: 45, color: 'bg-blue-100' },
+        { name: 'AI', count: 32, color: 'bg-purple-100' },
+        { name: 'Cybersecurity', count: 28, color: 'bg-green-100' },
+        { name: 'IoT', count: 25, color: 'bg-yellow-100' },
+        { name: 'Frontend', count: 22, color: 'bg-pink-100' },
+        { name: 'Backend', count: 20, color: 'bg-indigo-100' },
+        { name: 'NLP', count: 18, color: 'bg-gray-100' },
+        { name: 'Machine Learning', count: 15, color: 'bg-red-100' },
+        { name: 'DevOps', count: 12, color: 'bg-teal-100' },
+        { name: 'Mobile Development', count: 10, color: 'bg-orange-100' }
+      ];
+
+      // Add default tags that aren't already in our database
+      const existingTagNames = popularTags.map(t => t.name.toLowerCase());
+      const missingTags = defaultTags.filter(t => 
+        !existingTagNames.includes(t.name.toLowerCase())
+      );
+
+      popularTags.push(...missingTags.slice(0, 10 - popularTags.length));
+    }
 
     res.json(popularTags);
   } catch (error) {
@@ -202,9 +282,9 @@ router.get('/:id', async (req: any, res: any) => {
 });
 
 // Create a new article (mentors only)
-router.post('/', authenticateToken, async (req: any, res: any) => {
+router.post('/', authenticateToken, upload.array('images', 5), async (req: any, res: any) => {
   try {
-    const { title, content, imageUrls } = req.body;
+    const { title, content, tags } = req.body;
     const userId = req.user.userId;
     const userRole = req.user.role;
 
@@ -213,12 +293,39 @@ router.post('/', authenticateToken, async (req: any, res: any) => {
       return res.status(403).json({ message: 'Only mentors can create articles' });
     }
 
+    if (!title || !content) {
+      return res.status(400).json({ message: 'Title and content are required' });
+    }
+
+    // Handle uploaded images
+    const imageUrls: string[] = [];
+    if (req.files && Array.isArray(req.files)) {
+      for (const file of req.files) {
+        // In production, you'd upload to cloud storage and get URLs
+        // For now, we'll create local URLs
+        const imageUrl = `/uploads/articles/${file.filename}`;
+        imageUrls.push(imageUrl);
+      }
+    }
+
+    // Parse tags if they're provided as a JSON string
+    let parsedTags: string[] = [];
+    if (tags) {
+      try {
+        parsedTags = typeof tags === 'string' ? JSON.parse(tags) : tags;
+      } catch (error) {
+        console.error('Error parsing tags:', error);
+        parsedTags = [];
+      }
+    }
+
+    // Create the article
     const article = await prisma.article.create({
       data: {
-        title,
-        content,
+        title: title.trim(),
+        content: content.trim(),
         authorId: userId,
-        imageUrls: imageUrls || []
+        imageUrls: imageUrls
       },
       include: {
         author: {
@@ -231,6 +338,35 @@ router.post('/', authenticateToken, async (req: any, res: any) => {
       }
     });
 
+    // Create tags if they don't exist and link them to the article
+    if (parsedTags.length > 0) {
+      for (const tagName of parsedTags) {
+        try {
+          // Find or create tag
+          let tag = await prisma.tag.findUnique({
+            where: { name: tagName.toLowerCase().trim() }
+          });
+
+          if (!tag) {
+            tag = await prisma.tag.create({
+              data: { name: tagName.toLowerCase().trim() }
+            });
+          }
+
+          // Link tag to article
+          await prisma.articleTag.create({
+            data: {
+              articleId: article.id,
+              tagId: tag.id
+            }
+          });
+        } catch (error) {
+          console.error(`Error creating/linking tag ${tagName}:`, error);
+          // Continue with other tags even if one fails
+        }
+      }
+    }
+
     res.status(201).json({
       message: 'Article created successfully',
       article: {
@@ -239,13 +375,14 @@ router.post('/', authenticateToken, async (req: any, res: any) => {
         content: article.content,
         imageUrls: article.imageUrls,
         authorName: article.author.name,
-        createdAt: article.createdAt
+        createdAt: article.createdAt,
+        tags: parsedTags
       }
     });
 
   } catch (error) {
     console.error('Error creating article:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: 'Server error', details: (error as any)?.message });
   }
 });
 

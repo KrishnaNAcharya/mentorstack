@@ -1,29 +1,51 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Article as APIArticle, authAPI } from '@/lib/auth-api';
+import { useSearchParams } from 'next/navigation';
+import Link from 'next/link';
+import Image from 'next/image';
+import { Article as APIArticle, authAPI, Tag } from '@/lib/auth-api';
 import Layout from '@/components/Layout';
 
 export default function ArticlesPage() {
   const [articles, setArticles] = useState<APIArticle[]>([]);
+  const [categories, setCategories] = useState<Tag[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [userVotes, setUserVotes] = useState<Record<number, 'upvote' | 'downvote' | null>>({});
-
-  const categories = ['All', 'Web Development', 'AI', 'Cybersecurity', 'IoT', 'Frontend', 'Backend', 'NLP'];
+  
+  const searchParams = useSearchParams();
 
   useEffect(() => {
-    fetchArticles();
-  }, []);
+    const loadData = async () => {
+      try {
+        const [articlesResponse, categoriesData] = await Promise.all([
+          authAPI.getArticles(1, 10, selectedCategory === 'All' ? undefined : selectedCategory),
+          authAPI.getPopularTags()
+        ]);
+        setArticles(articlesResponse.articles);
+        setCategories(categoriesData);
+      } catch (error) {
+        console.error('Error loading data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const fetchArticles = async () => {
+    loadData();
+    // Check if there's a category in URL params
+    const categoryParam = searchParams.get('category');
+    if (categoryParam) {
+      setSelectedCategory(categoryParam);
+    }
+  }, [selectedCategory, searchParams]);
+
+  const fetchArticles = async (category?: string) => {
     try {
-      const response = await authAPI.getArticles();
+      const response = await authAPI.getArticles(1, 10, category);
       setArticles(response.articles);
     } catch (error) {
       console.error('Error fetching articles:', error);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -37,16 +59,27 @@ export default function ArticlesPage() {
       setUserVotes(prev => ({ ...prev, [articleId]: newVote }));
       
       // Refresh articles to get updated vote counts
-      fetchArticles();
+      fetchArticles(selectedCategory === 'All' ? undefined : selectedCategory);
     } catch (error) {
       console.error('Error voting on article:', error);
     }
   };
 
+  const handleCategoryChange = async (category: string) => {
+    setSelectedCategory(category);
+    setLoading(true);
+    try {
+      await fetchArticles(category === 'All' ? undefined : category);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const filteredArticles = articles.filter(article => {
-    const matchesCategory = selectedCategory === 'All' || 
-                           article.title.toLowerCase().includes(selectedCategory.toLowerCase());
-    return matchesCategory;
+    if (selectedCategory === 'All') return true;
+    return article.tags && article.tags.some(tag => 
+      tag.toLowerCase().includes(selectedCategory.toLowerCase())
+    );
   });
 
   const getCategoryFromTitle = (title: string) => {
@@ -84,25 +117,37 @@ export default function ArticlesPage() {
       <div className="max-w-7xl mx-auto px-6 py-8">
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-4xl font-bold text-gray-900">Articles</h1>
-          <button className="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors font-medium">
-            ➕ Create a Post
-          </button>
+          <Link href="/create-article">
+            <button className="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors font-medium">
+              ➕ Create a Post
+            </button>
+          </Link>
         </div>
 
         {/* Category Filter */}
         <div className="mb-8">
           <div className="flex flex-wrap gap-3">
-            {categories.map(category => (
+            <button
+              onClick={() => handleCategoryChange('All')}
+              className={`px-6 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
+                selectedCategory === 'All'
+                  ? 'bg-blue-600 text-white shadow-lg'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:shadow-md'
+              }`}
+            >
+              All
+            </button>
+            {categories.map((category) => (
               <button
-                key={category}
-                onClick={() => setSelectedCategory(category)}
+                key={category.name}
+                onClick={() => handleCategoryChange(category.name)}
                 className={`px-6 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
-                  selectedCategory === category
+                  selectedCategory === category.name
                     ? 'bg-blue-600 text-white shadow-lg'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:shadow-md'
                 }`}
               >
-                {category}
+                {category.name} ({category.count})
               </button>
             ))}
           </div>
@@ -184,9 +229,11 @@ export default function ArticlesPage() {
                 
                 {/* Image */}
                 <div className="w-48 h-40 bg-gradient-to-br from-blue-400 to-purple-500 flex-shrink-0">
-                  <img 
+                  <Image 
                     src={getArticleImage(article.id)}
                     alt={article.title}
+                    width={192}
+                    height={160}
                     className="w-full h-full object-cover"
                     onError={(e) => {
                       // Fallback to gradient background

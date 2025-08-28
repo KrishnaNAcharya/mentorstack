@@ -126,32 +126,20 @@ async function main() {
     (1, 2), (1, 1), (2, 3), (2, 8), (3, 5)
   `;
 
-  // Create Answers
+  // Create Answers (updated for new schema)
   await prisma.$executeRaw`
-    INSERT INTO "Answer" (id, "questionId", "userId", "userRole", body, "createdAt", "updatedAt")
+    INSERT INTO "Answer" (id, "questionId", "mentorId", body, "upvotes", "downvotes", "createdAt", "updatedAt")
     VALUES 
-    (1, 1, 1, 'mentor', 'For state management in large React apps, I recommend Zustand or Redux Toolkit. They provide better structure than Context API.', NOW(), NOW()),
-    (2, 2, 2, 'mentor', 'Focus on REST conventions: use proper HTTP methods, status codes, and consistent URL patterns.', NOW(), NOW()),
-    (3, 3, 1, 'mentor', 'Practice algorithms daily, build portfolio projects, and prepare for behavioral questions.', NOW(), NOW())
+    (1, 1, 1, 'For state management in large React apps, I recommend Zustand or Redux Toolkit. They provide better structure than Context API.', 0, 0, NOW(), NOW()),
+    (2, 2, 2, 'Focus on REST conventions: use proper HTTP methods, status codes, and consistent URL patterns.', 0, 0, NOW(), NOW()),
+    (3, 3, 1, 'Practice algorithms daily, build portfolio projects, and prepare for behavioral questions.', 0, 0, NOW(), NOW())
   `;
 
-  // Create Question Votes
-  await prisma.$executeRaw`
-    INSERT INTO "QuestionVote" ("userRole", "userId", "questionId", "voteType", "createdAt", "updatedAt")
-    VALUES 
-    ('mentor', 2, 1, 'upvote', NOW(), NOW()),
-    ('mentee', 2, 1, 'upvote', NOW(), NOW()),
-    ('mentor', 1, 2, 'upvote', NOW(), NOW())
-  `;
+  // Note: QuestionVote and AnswerVote tables no longer exist in the current schema
+  // Voting is now handled differently (upvotes/downvotes columns)
 
-  // Create Answer Votes
-  await prisma.$executeRaw`
-    INSERT INTO "AnswerVote" ("userRole", "userId", "answerId", "voteType", "createdAt", "updatedAt")
-    VALUES 
-    ('mentee', 1, 1, 'upvote', NOW(), NOW()),
-    ('mentee', 2, 2, 'upvote', NOW(), NOW()),
-    ('mentee', 3, 3, 'upvote', NOW(), NOW())
-  `;
+  // Note: AnswerVote table no longer exists in the current schema
+  // Voting is now handled with upvotes/downvotes columns on Answer table
 
   // Create Articles
   await prisma.$executeRaw`

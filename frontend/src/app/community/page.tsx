@@ -3,10 +3,11 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Layout from "../../components/Layout";
-import { authAPI, Community } from "@/lib/auth-api";
+import { authAPI, Community, CommunityCategory } from "@/lib/auth-api";
 
 export default function CommunityPage() {
   const [communities, setCommunities] = useState<Community[]>([]);
+  const [categories, setCategories] = useState<CommunityCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -18,15 +19,19 @@ export default function CommunityPage() {
   const [skillInput, setSkillInput] = useState("");
 
   useEffect(() => {
-    loadCommunities();
+    loadData();
   }, []);
 
-  const loadCommunities = async () => {
+  const loadData = async () => {
     try {
-      const communitiesData = await authAPI.getCommunities();
+      const [communitiesData, categoriesData] = await Promise.all([
+        authAPI.getCommunities(),
+        authAPI.getCommunityCategories()
+      ]);
       setCommunities(communitiesData);
+      setCategories(categoriesData);
     } catch (error) {
-      console.error('Error loading communities:', error);
+      console.error('Error loading data:', error);
     } finally {
       setLoading(false);
     }
@@ -34,7 +39,7 @@ export default function CommunityPage() {
 
   const handleSearch = async () => {
     if (!searchQuery.trim()) {
-      loadCommunities();
+      loadData();
       return;
     }
 
@@ -60,7 +65,7 @@ export default function CommunityPage() {
       setShowCreateModal(false);
       setNewCommunity({ name: "", description: "", skills: [] });
       setSkillInput("");
-      loadCommunities();
+      loadData();
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to create community';
       alert(errorMessage);
@@ -139,13 +144,14 @@ export default function CommunityPage() {
         <div className="mb-8">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Categories</h2>
           <div className="flex flex-wrap gap-2">
-            {['Web Development', 'Mobile Development', 'Data Science', 'Machine Learning', 'DevOps', 'UI/UX Design'].map((category) => (
+            {categories.slice(0, 12).map((category) => (
               <button
-                key={category}
-                onClick={() => setSearchQuery(category)}
+                key={category.name}
+                onClick={() => setSearchQuery(category.name)}
                 className="px-4 py-2 bg-gray-100 text-gray-700 rounded-full hover:bg-gray-200 transition-colors text-sm"
+                title={`${category.count} communities have this skill`}
               >
-                {category}
+                {category.name} ({category.count})
               </button>
             ))}
           </div>
@@ -218,6 +224,8 @@ export default function CommunityPage() {
             </button>
           </div>
         )}
+
+        {/* Remove unused loadCommunities function */}
 
         {/* Create Community Modal */}
         {showCreateModal && (

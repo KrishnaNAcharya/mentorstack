@@ -20,8 +20,8 @@ export default function MenteeHomePage() {
         const userData = await authAPI.getCurrentUser();
         setUser(userData.user);
 
-        // Redirect if not mentee
-        if (userData.user.role !== 'mentee') {
+        // Allow both mentees and mentors to access questions page
+        if (userData.user.role !== 'mentee' && userData.user.role !== 'mentor') {
           router.push('/home');
           return;
         }
@@ -55,15 +55,15 @@ export default function MenteeHomePage() {
   return (
     <Layout>
       {/* Feed */}
-      <section className="flex flex-1 p-8 gap-8 overflow-auto">
-        {/* Left - Questions Feed */}
-        <div className="flex-1">
+      <section className="flex flex-1 p-8 overflow-auto">
+        {/* Questions Feed */}
+        <div className="w-full max-w-4xl mx-auto">
           <h2 className="text-3xl font-bold mb-6">
             Welcome to{" "}
             <span className="text-[var(--color-primary-dark)]">
               MentorStack
             </span>
-            , {user?.name || 'Mentee'}
+            , {user?.name || (user?.role === 'mentor' ? 'Mentor' : 'Mentee')}
           </h2>
 
           {/* Filter Bar */}
@@ -81,11 +81,13 @@ export default function MenteeHomePage() {
                 {tab}
               </button>
             ))}
-            <Link href="/ask-question">
-              <button className="ml-auto bg-[var(--color-primary-dark)] text-[var(--color-neutral)] px-5 py-2 rounded-lg font-medium shadow-lg hover:bg-[var(--color-primary)] transition">
-                Ask Question
-              </button>
-            </Link>
+            {user?.role === 'mentee' && (
+              <Link href="/ask-question">
+                <button className="ml-auto bg-[var(--color-primary-dark)] text-[var(--color-neutral)] px-5 py-2 rounded-lg font-medium shadow-lg hover:bg-[var(--color-primary)] transition">
+                  Ask Question
+                </button>
+              </Link>
+            )}
           </div>
 
           {/* Questions List */}
@@ -127,47 +129,6 @@ export default function MenteeHomePage() {
             </div>
           ))}
         </div>
-
-        {/* Right - Hot Topics + Blogs */}
-        <aside className="w-72 flex flex-col gap-8">
-          <div className="bg-[var(--color-neutral)] p-5 rounded-xl shadow-md">
-            <h4 className="font-semibold mb-4 text-[var(--color-tertiary)]">
-              Hot Topics
-            </h4>
-            <ul className="space-y-3">
-              <li className="flex justify-between items-center text-sm">
-                <span className="bg-[var(--color-primary)] text-[var(--color-neutral)] px-3 py-1 rounded-full">
-                  Razorpay
-                </span>
-                <span className="text-[var(--color-tertiary-light)]">x20</span>
-              </li>
-              <li className="flex justify-between items-center text-sm">
-                <span className="bg-[var(--color-primary)] text-[var(--color-neutral)] px-3 py-1 rounded-full">
-                  Next.js
-                </span>
-                <span className="text-[var(--color-tertiary-light)]">x20</span>
-              </li>
-            </ul>
-          </div>
-
-          <div className="bg-[var(--color-neutral)] p-5 rounded-xl shadow-md">
-            <h4 className="font-semibold mb-4 text-[var(--color-tertiary)]">
-              Featured Blogs
-            </h4>
-            <ul className="space-y-3 text-sm">
-              {Array(4)
-                .fill("Table of InterpolatingFunction")
-                .map((blog, i) => (
-                  <li
-                    key={i}
-                    className="hover:text-[var(--color-primary)] cursor-pointer transition"
-                  >
-                    {blog}
-                  </li>
-                ))}
-            </ul>
-          </div>
-        </aside>
       </section>
     </Layout>
   );
