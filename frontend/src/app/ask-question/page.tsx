@@ -99,22 +99,27 @@ const QuestionForm = () => {
     setError('');
     
     try {
-      // For now, we'll use a mock submission since the questions API needs fixing
-      // TODO: Implement actual API call when questions endpoint is fixed
       console.log('Submitting question:', { 
         title, 
         body: `${description}\n\nWhat I've tried:\n${expectedOutcome}`, 
         tags: selectedTags 
       });
       
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Call the actual API
+      const result = await authAPI.submitQuestion(
+        title, 
+        `${description}\n\nWhat I've tried:\n${expectedOutcome}`, 
+        selectedTags
+      );
       
-      // Redirect to mentee home page after successful submission
-      router.push('/mentee-home');
-    } catch (err) {
+      console.log('Question submitted successfully:', result);
+      
+      // Redirect to questions page to see the newly created question
+      router.push('/questions');
+    } catch (err: unknown) {
       console.error('Failed to submit question:', err);
-      setError('Failed to submit question. Please try again.');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to submit question. Please try again.';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

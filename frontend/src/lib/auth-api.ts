@@ -313,6 +313,21 @@ class AuthAPI {
     return response.json();
   }
 
+  async submitQuestion(title: string, body: string, tags: string[]): Promise<{ message: string; question: Question }> {
+    const response = await fetch(`${API_BASE_URL}/questions`, {
+      method: 'POST',
+      headers: this.getHeaders(true),
+      body: JSON.stringify({ title, body, tags }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to submit question');
+    }
+
+    return response.json();
+  }
+
   // Note: Questions don't have voting system in current schema
   // async voteOnQuestion(questionId: number, voteType: 'upvote' | 'downvote'): Promise<{ message: string }> {
   //   // Not implemented - questions don't have voting in schema
