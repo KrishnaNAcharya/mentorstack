@@ -34,6 +34,12 @@ const Navbar = ({
 
       {/* Navigation icons on the right */}
       <div className="flex items-center gap-5">
+        <button
+          className="text-sm font-medium text-[var(--color-tertiary-light)] hover:text-[var(--color-primary)] transition"
+          onClick={() => router.push('/chatbot')}
+        >
+          AI Chat
+        </button>
         <Home className="w-6 h-6 text-[var(--color-tertiary-light)] cursor-pointer hover:text-[var(--color-primary)] transition" />
         <Bell className="w-6 h-6 text-[var(--color-tertiary-light)] cursor-pointer hover:text-[var(--color-primary)] transition" />
         <UserCircle
