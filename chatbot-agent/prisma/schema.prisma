@@ -1,0 +1,295 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Mentor {
+  id                 Int                 @id @default(autoincrement())
+  name               String
+  bio                String?
+  avatarUrl          String?
+  skills             String[]
+  location           String?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  reputation         Int                 @default(0)
+  answers            Answer[]
+  articles           Article[]
+  connections        Connection[]
+  mentorshipRequests MentorshipRequest[]
+}
+
+model Mentee {
+  id                 Int                 @id @default(autoincrement())
+  name               String
+  bio                String?
+  avatarUrl          String?
+  skills             String[]
+  location           String?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  reputation         Int                 @default(0)
+  aiLogs             AiLog[]
+  articleVotes       ArticleVote[]
+  connections        Connection[]
+  mentorshipRequests MentorshipRequest[]
+  questions          Question[]
+}
+
+model Admin {
+  id        Int      @id @default(autoincrement())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model AuthCredentials {
+  id        Int       @id @default(autoincrement())
+  email     String    @unique
+  password  String
+  role      Role
+  userId    Int
+  createdAt DateTime  @default(now())
+  lastLogin DateTime?
+
+  @@index([userId, role])
+}
+
+model MentorshipRequest {
+  id             Int      @id @default(autoincrement())
+  mentorId       Int
+  menteeId       Int
+  status         String
+  requestMessage String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  mentee         Mentee   @relation(fields: [menteeId], references: [id])
+  mentor         Mentor   @relation(fields: [mentorId], references: [id])
+
+  @@unique([mentorId, menteeId])
+}
+
+model Connection {
+  id           Int           @id @default(autoincrement())
+  mentorId     Int
+  menteeId     Int
+  acceptedAt   DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  mentee       Mentee        @relation(fields: [menteeId], references: [id])
+  mentor       Mentor        @relation(fields: [mentorId], references: [id])
+  conversation Conversation?
+
+  @@unique([mentorId, menteeId])
+}
+
+model Conversation {
+  id           Int        @id @default(autoincrement())
+  connectionId Int        @unique
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  connection   Connection @relation(fields: [connectionId], references: [id])
+  messages     Message[]
+}
+
+model Message {
+  id             Int          @id @default(autoincrement())
+  conversationId Int
+  senderRole     Role
+  senderId       Int
+  message        String
+  isRead         Boolean      @default(false)
+  timestamp      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  conversation   Conversation @relation(fields: [conversationId], references: [id])
+}
+
+model Question {
+  id        Int           @id @default(autoincrement())
+  menteeId  Int
+  title     String
+  body      String
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  answers   Answer[]
+  mentee    Mentee        @relation(fields: [menteeId], references: [id])
+  tags      QuestionTag[]
+}
+
+model Answer {
+  id         Int      @id @default(autoincrement())
+  questionId Int
+  mentorId   Int
+  body       String
+  upvotes    Int      @default(0)
+  downvotes  Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  mentor     Mentor   @relation(fields: [mentorId], references: [id])
+  question   Question @relation(fields: [questionId], references: [id])
+}
+
+model Article {
+  id        Int           @id @default(autoincrement())
+  authorId  Int
+  title     String
+  content   String
+  imageUrls String[]
+  upvotes   Int           @default(0)
+  downvotes Int           @default(0)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  author    Mentor        @relation(fields: [authorId], references: [id])
+  tags      ArticleTag[]
+  votes     ArticleVote[]
+}
+
+model ArticleVote {
+  id        Int      @id @default(autoincrement())
+  menteeId  Int
+  articleId Int
+  voteType  VoteType
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  article   Article  @relation(fields: [articleId], references: [id])
+  mentee    Mentee   @relation(fields: [menteeId], references: [id])
+
+  @@unique([menteeId, articleId])
+}
+
+model Community {
+  id          Int               @id @default(autoincrement())
+  name        String            @unique
+  description String?
+  skills      String[]
+  createdBy   Int
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  members     CommunityMember[]
+  posts       CommunityPost[]
+}
+
+model CommunityMember {
+  id          Int       @id @default(autoincrement())
+  communityId Int
+  userRole    Role
+  userId      Int
+  joinedAt    DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  community   Community @relation(fields: [communityId], references: [id])
+
+  @@unique([communityId, userId, userRole])
+}
+
+model CommunityPost {
+  id          Int                 @id @default(autoincrement())
+  communityId Int
+  userRole    Role
+  userId      Int
+  title       String
+  content     String
+  imageUrls   String[]
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  community   Community           @relation(fields: [communityId], references: [id])
+  votes       CommunityPostVote[]
+}
+
+model CommunityPostVote {
+  id        Int           @id @default(autoincrement())
+  userRole  Role
+  userId    Int
+  postId    Int
+  voteType  VoteType
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  post      CommunityPost @relation(fields: [postId], references: [id])
+
+  @@unique([userId, postId, userRole])
+}
+
+model Badge {
+  id                  Int         @id @default(autoincrement())
+  name                String      @unique
+  description         String
+  reputationThreshold Int
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+  userBadges          UserBadge[]
+}
+
+model UserBadge {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  userRole  Role
+  badgeId   Int
+  awardedAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  badge     Badge    @relation(fields: [badgeId], references: [id])
+
+  @@unique([userId, badgeId, userRole])
+}
+
+model ReputationHistory {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  userRole  Role
+  change    Int
+  reason    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model AiLog {
+  id        Int      @id @default(autoincrement())
+  menteeId  Int
+  prompt    String
+  response  String
+  timestamp DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  mentee    Mentee   @relation(fields: [menteeId], references: [id])
+}
+
+model Tag {
+  id          Int           @id @default(autoincrement())
+  name        String        @unique
+  description String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  articles    ArticleTag[]
+  questions   QuestionTag[]
+}
+
+model QuestionTag {
+  id         Int      @id @default(autoincrement())
+  questionId Int
+  tagId      Int
+  question   Question @relation(fields: [questionId], references: [id])
+  tag        Tag      @relation(fields: [tagId], references: [id])
+
+  @@unique([questionId, tagId])
+}
+
+model ArticleTag {
+  id        Int     @id @default(autoincrement())
+  articleId Int
+  tagId     Int
+  article   Article @relation(fields: [articleId], references: [id])
+  tag       Tag     @relation(fields: [tagId], references: [id])
+
+  @@unique([articleId, tagId])
+}
+
+enum Role {
+  mentor
+  mentee
+  admin
+}
+
+enum VoteType {
+  upvote
+  downvote
+}

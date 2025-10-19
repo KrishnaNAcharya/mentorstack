@@ -194,6 +194,12 @@ export default function CommunityDetailPage() {
                 {isMember ? (
                   <>
                     <button
+                      onClick={() => router.push(`/community/${communityId}/discussions`)}
+                      className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                    >
+                      Discussions
+                    </button>
+                    <button
                       onClick={() => setShowCreatePost(true)}
                       className="px-6 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors"
                     >
