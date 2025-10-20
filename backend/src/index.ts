@@ -22,6 +22,8 @@ import jwt from 'jsonwebtoken';
 import { getRabbitChannel, createEphemeralConsumer, publish } from './realtime/rabbit';
 import { WS_PATHS, ROUTING_KEYS, EXCHANGES } from './realtime/constants';
 import { ensureAiTopology } from './realtime/ai-topology';
+import wordleRouter from "./routes/wordle";
+import wordsRouter from "./routes/words";
 
 // Load environment variables
 dotenv.config();
@@ -48,6 +50,8 @@ app.use('/api/rephrase', rephraseRoute);
 app.use("/api/summarize", summarizeRoute);
 app.use('/api/mentors', mentorsRouter);
 app.use("/api/rectags", tagsRoute);
+app.use("/api/wordle", wordleRouter);
+app.use("/api/words", wordsRouter);
 app.use('/api/chat', chatRouter);
 
 // Health check endpoint
