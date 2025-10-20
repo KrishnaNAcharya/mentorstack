@@ -1,6 +1,7 @@
 import express from 'express';
 import jwt from 'jsonwebtoken';
 import { prisma } from '../../lib/prisma';
+import { Role } from '@prisma/client';
 
 const router = express.Router();
 
@@ -25,15 +26,19 @@ const authenticateToken = (req: any, res: any, next: any) => {
 // Get all mentors
 router.get('/', async (req, res) => {
   try {
-    const mentors = await prisma.mentor.findMany({
+    const mentors = await prisma.user.findMany({
+      where: { role: Role.mentor },
       select: {
         id: true,
         name: true,
+        email: true,
         bio: true,
         avatarUrl: true,
         skills: true,
         location: true,
         reputation: true,
+        jobTitle: true,
+        department: true,
         createdAt: true
       }
     });
@@ -49,8 +54,11 @@ router.get('/:id', authenticateToken, async (req: any, res: any) => {
   try {
     const mentorId = parseInt(req.params.id);
 
-    const mentor = await prisma.mentor.findUnique({
-      where: { id: mentorId },
+    const mentor = await prisma.user.findFirst({
+      where: { 
+        id: mentorId,
+        role: Role.mentor 
+      },
       include: {
         answers: {
           include: {
@@ -67,22 +75,24 @@ router.get('/:id', authenticateToken, async (req: any, res: any) => {
         articles: {
           orderBy: { createdAt: 'desc' }
         },
-        connections: {
+        mentorConnections: {
           include: {
             mentee: {
               select: {
                 id: true,
-                name: true
+                name: true,
+                email: true
               }
             }
           }
         },
-        mentorshipRequests: {
+        mentorRequests: {
           include: {
             mentee: {
               select: {
                 id: true,
-                name: true
+                name: true,
+                email: true
               }
             }
           }
@@ -94,34 +104,30 @@ router.get('/:id', authenticateToken, async (req: any, res: any) => {
       return res.status(404).json({ message: 'Mentor not found' });
     }
 
-    // Get auth credentials for email
-    const authCredentials = await prisma.authCredentials.findFirst({
-      where: { userId: mentorId, role: 'mentor' },
-      select: { email: true }
-    });
-
     // Calculate stats
     const stats = {
       answersProvided: mentor.answers.length,
       articlesWritten: mentor.articles.length,
-      menteesConnected: mentor.connections.length,
-      mentorshipRequests: mentor.mentorshipRequests.length
+      menteesConnected: mentor.mentorConnections.length,
+      mentorshipRequests: mentor.mentorRequests.length
     };
 
     res.json({
       id: mentor.id,
       name: mentor.name,
-      email: authCredentials?.email || '',
+      email: mentor.email,
       bio: mentor.bio,
       avatarUrl: mentor.avatarUrl,
       skills: mentor.skills,
       location: mentor.location,
+      jobTitle: mentor.jobTitle,
+      department: mentor.department,
       reputation: mentor.reputation,
       joinedDate: mentor.createdAt,
       answers: mentor.answers,
       articles: mentor.articles,
-      connections: mentor.connections,
-      mentorshipRequests: mentor.mentorshipRequests,
+      connections: mentor.mentorConnections,
+      mentorshipRequests: mentor.mentorRequests,
       stats
     });
 
@@ -141,8 +147,11 @@ router.get('/profile/me', authenticateToken, async (req: any, res: any) => {
       return res.status(403).json({ message: 'Access denied. Mentor role required.' });
     }
 
-    const mentor = await prisma.mentor.findUnique({
-      where: { id: userId },
+    const mentor = await prisma.user.findFirst({
+      where: { 
+        id: userId,
+        role: Role.mentor 
+      },
       include: {
         answers: {
           include: {
@@ -159,17 +168,18 @@ router.get('/profile/me', authenticateToken, async (req: any, res: any) => {
         articles: {
           orderBy: { createdAt: 'desc' }
         },
-        connections: {
+        mentorConnections: {
           include: {
             mentee: {
               select: {
                 id: true,
-                name: true
+                name: true,
+                email: true
               }
             }
           }
         },
-        mentorshipRequests: {
+        mentorRequests: {
           include: {
             mentee: {
               select: {
@@ -186,34 +196,30 @@ router.get('/profile/me', authenticateToken, async (req: any, res: any) => {
       return res.status(404).json({ message: 'Mentor profile not found' });
     }
 
-    // Get auth credentials for email
-    const authCredentials = await prisma.authCredentials.findFirst({
-      where: { userId: userId, role: 'mentor' },
-      select: { email: true }
-    });
-
     // Calculate stats
     const stats = {
       answersProvided: mentor.answers.length,
       articlesWritten: mentor.articles.length,
-      menteesConnected: mentor.connections.length,
-      mentorshipRequests: mentor.mentorshipRequests.length
+      menteesConnected: mentor.mentorConnections.length,
+      mentorshipRequests: mentor.mentorRequests.length
     };
 
     res.json({
       id: mentor.id,
       name: mentor.name,
-      email: authCredentials?.email || '',
+      email: mentor.email,
       bio: mentor.bio,
       avatarUrl: mentor.avatarUrl,
       skills: mentor.skills,
       location: mentor.location,
+      jobTitle: mentor.jobTitle,
+      department: mentor.department,
       reputation: mentor.reputation,
       joinedDate: mentor.createdAt,
       answers: mentor.answers,
       articles: mentor.articles,
-      connections: mentor.connections,
-      mentorshipRequests: mentor.mentorshipRequests,
+      connections: mentor.mentorConnections,
+      mentorshipRequests: mentor.mentorRequests,
       stats
     });
 
@@ -235,13 +241,13 @@ router.put('/profile/me', authenticateToken, async (req: any, res: any) => {
 
     const { name, bio, skills, location } = req.body;
 
-    const updatedMentor = await prisma.mentor.update({
+    const updatedMentor = await prisma.user.update({
       where: { id: userId },
       data: {
-        name,
-        bio,
-        skills: skills || [],
-        location
+        ...(name && { name }),
+        ...(bio !== undefined && { bio }),
+        ...(skills && { skills }),
+        ...(location !== undefined && { location })
       }
     });
 
@@ -250,6 +256,7 @@ router.put('/profile/me', authenticateToken, async (req: any, res: any) => {
       profile: {
         id: updatedMentor.id,
         name: updatedMentor.name,
+        email: updatedMentor.email,
         bio: updatedMentor.bio,
         skills: updatedMentor.skills,
         location: updatedMentor.location

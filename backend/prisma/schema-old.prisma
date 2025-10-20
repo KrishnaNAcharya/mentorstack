@@ -17,6 +17,7 @@ model Mentor {
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
   reputation         Int                 @default(0)
+  answers            Answer[]
   articles           Article[]
   connections        Connection[]
   mentorshipRequests MentorshipRequest[]
@@ -34,7 +35,6 @@ model Mentee {
   reputation         Int                 @default(0)
   aiLogs             AiLog[]
   articleVotes       ArticleVote[]
-  bookmarks          Bookmark[]
   connections        Connection[]
   mentorshipRequests MentorshipRequest[]
   questions          Question[]
@@ -108,56 +108,28 @@ model Message {
 }
 
 model Question {
-  id        Int            @id @default(autoincrement())
+  id        Int           @id @default(autoincrement())
   menteeId  Int
   title     String
   body      String
-  createdAt DateTime       @default(now())
-  updatedAt DateTime       @updatedAt
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
   answers   Answer[]
-  mentee    Mentee         @relation(fields: [menteeId], references: [id])
+  mentee    Mentee        @relation(fields: [menteeId], references: [id])
   tags      QuestionTag[]
-  votes     QuestionVote[]
 }
 
 model Answer {
-  id         Int          @id @default(autoincrement())
-  questionId Int
-  body       String
-  upvotes    Int          @default(0)
-  downvotes  Int          @default(0)
-  createdAt  DateTime     @default(now())
-  updatedAt  DateTime     @updatedAt
-  userId     Int
-  userRole   Role
-  question   Question     @relation(fields: [questionId], references: [id])
-  votes      AnswerVote[]
-}
-
-model QuestionVote {
   id         Int      @id @default(autoincrement())
-  userRole   Role
-  userId     Int
   questionId Int
-  voteType   VoteType
+  mentorId   Int
+  body       String
+  upvotes    Int      @default(0)
+  downvotes  Int      @default(0)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+  mentor     Mentor   @relation(fields: [mentorId], references: [id])
   question   Question @relation(fields: [questionId], references: [id])
-
-  @@unique([userId, questionId, userRole])
-}
-
-model AnswerVote {
-  id        Int      @id @default(autoincrement())
-  userRole  Role
-  userId    Int
-  answerId  Int
-  voteType  VoteType
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  answer    Answer   @relation(fields: [answerId], references: [id])
-
-  @@unique([userId, answerId, userRole])
 }
 
 model Article {
@@ -279,18 +251,6 @@ model AiLog {
   timestamp DateTime @default(now())
   updatedAt DateTime @updatedAt
   mentee    Mentee   @relation(fields: [menteeId], references: [id])
-}
-
-model Bookmark {
-  id          Int      @id @default(autoincrement())
-  menteeId    Int
-  contentType String
-  contentId   Int
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  mentee      Mentee   @relation(fields: [menteeId], references: [id])
-
-  @@unique([menteeId, contentType, contentId])
 }
 
 model Tag {

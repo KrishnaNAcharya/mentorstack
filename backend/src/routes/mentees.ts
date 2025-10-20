@@ -1,6 +1,7 @@
 import express from 'express';
 import jwt from 'jsonwebtoken';
 import { prisma } from '../../lib/prisma';
+import { Role } from '@prisma/client';
 
 const router = express.Router();
 
@@ -25,13 +26,17 @@ const authenticateToken = (req: any, res: any, next: any) => {
 // Get all mentees
 router.get('/', async (req, res) => {
   try {
-    const mentees = await prisma.mentee.findMany({
+    const mentees = await prisma.user.findMany({
+      where: { role: Role.mentee },
       select: {
         id: true,
         name: true,
+        email: true,
         bio: true,
         skills: true,
         reputation: true,
+        jobTitle: true,
+        department: true,
         createdAt: true
       }
     });
@@ -47,13 +52,16 @@ router.get('/:id', authenticateToken, async (req: any, res: any) => {
   try {
     const menteeId = parseInt(req.params.id);
     
-    const mentee = await prisma.mentee.findUnique({
-      where: { id: menteeId },
+    const mentee = await prisma.user.findFirst({
+      where: { 
+        id: menteeId,
+        role: Role.mentee 
+      },
       include: {
         questions: {
           orderBy: { createdAt: 'desc' }
         },
-        mentorshipRequests: true
+        menteeRequests: true
       }
     });
 
@@ -61,24 +69,20 @@ router.get('/:id', authenticateToken, async (req: any, res: any) => {
       return res.status(404).json({ message: 'Mentee not found' });
     }
 
-    // Get auth credentials for email
-    const authCredentials = await prisma.authCredentials.findFirst({
-      where: { userId: menteeId, role: 'mentee' },
-      select: { email: true }
-    });
-
     // Calculate stats
     const stats = {
       questionsAsked: mentee.questions.length,
-      mentorshipRequestsCount: mentee.mentorshipRequests.length
+      mentorshipRequestsCount: mentee.menteeRequests.length
     };
 
     res.json({
       id: mentee.id,
       name: mentee.name,
-      email: authCredentials?.email || '',
+      email: mentee.email,
       bio: mentee.bio,
       skills: mentee.skills,
+      jobTitle: mentee.jobTitle,
+      department: mentee.department,
       reputation: mentee.reputation,
       joinedDate: mentee.createdAt,
       questions: mentee.questions,
@@ -101,13 +105,16 @@ router.get('/profile/me', authenticateToken, async (req: any, res: any) => {
       return res.status(403).json({ message: 'Access denied. Mentee role required.' });
     }
 
-    const mentee = await prisma.mentee.findUnique({
-      where: { id: userId },
+    const mentee = await prisma.user.findFirst({
+      where: { 
+        id: userId,
+        role: Role.mentee 
+      },
       include: {
         questions: {
           orderBy: { createdAt: 'desc' }
         },
-        mentorshipRequests: true
+        menteeRequests: true
       }
     });
 
@@ -115,24 +122,20 @@ router.get('/profile/me', authenticateToken, async (req: any, res: any) => {
       return res.status(404).json({ message: 'Mentee profile not found' });
     }
 
-    // Get auth credentials for email
-    const authCredentials = await prisma.authCredentials.findFirst({
-      where: { userId: userId, role: 'mentee' },
-      select: { email: true }
-    });
-
     // Calculate stats
     const stats = {
       questionsAsked: mentee.questions.length,
-      mentorshipRequestsCount: mentee.mentorshipRequests.length
+      mentorshipRequestsCount: mentee.menteeRequests.length
     };
 
     res.json({
       id: mentee.id,
       name: mentee.name,
-      email: authCredentials?.email || '',
+      email: mentee.email,
       bio: mentee.bio,
       skills: mentee.skills,
+      jobTitle: mentee.jobTitle,
+      department: mentee.department,
       reputation: mentee.reputation,
       joinedDate: mentee.createdAt,
       questions: mentee.questions,
@@ -155,14 +158,18 @@ router.put('/profile/me', authenticateToken, async (req: any, res: any) => {
       return res.status(403).json({ message: 'Access denied. Mentee role required.' });
     }
 
-    const { name, bio, skills } = req.body;
+    const { name, bio, skills, jobTitle, department, avatarUrl, location } = req.body;
 
-    const updatedMentee = await prisma.mentee.update({
+    const updatedMentee = await prisma.user.update({
       where: { id: userId },
       data: {
-        name,
-        bio,
-        skills: skills || []
+        ...(name && { name }),
+        ...(bio !== undefined && { bio }),
+        ...(skills && { skills }),
+        ...(jobTitle !== undefined && { jobTitle }),
+        ...(department !== undefined && { department }),
+        ...(avatarUrl !== undefined && { avatarUrl }),
+        ...(location !== undefined && { location })
       }
     });
 
@@ -171,8 +178,13 @@ router.put('/profile/me', authenticateToken, async (req: any, res: any) => {
       profile: {
         id: updatedMentee.id,
         name: updatedMentee.name,
+        email: updatedMentee.email,
         bio: updatedMentee.bio,
-        skills: updatedMentee.skills
+        skills: updatedMentee.skills,
+        jobTitle: updatedMentee.jobTitle,
+        department: updatedMentee.department,
+        avatarUrl: updatedMentee.avatarUrl,
+        location: updatedMentee.location
       }
     });
 

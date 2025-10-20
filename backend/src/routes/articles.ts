@@ -4,6 +4,7 @@ import multer, { FileFilterCallback } from 'multer';
 import path from 'path';
 import { Request } from 'express';
 import { prisma } from '../../lib/prisma';
+import { Role } from '@prisma/client';
 
 const router = express.Router();
 
@@ -252,10 +253,10 @@ router.get('/:id', async (req: any, res: any) => {
     const upvotes = article.votes.filter(vote => vote.voteType === 'upvote').length;
     const downvotes = article.votes.filter(vote => vote.voteType === 'downvote').length;
 
-    // Determine current user's vote if available (only mentees can vote on articles)
+    // Determine current user's vote if available (any user can vote on articles)
     let userVote: 'upvote' | 'downvote' | null = null;
-    if (currentUserId && currentUserRole === 'mentee') {
-      const userVoteRecord = article.votes.find(v => v.menteeId === currentUserId);
+    if (currentUserId) {
+      const userVoteRecord = article.votes.find(v => v.voterId === currentUserId);
       userVote = userVoteRecord ? (userVoteRecord.voteType as 'upvote' | 'downvote') : null;
     }
 
@@ -325,6 +326,7 @@ router.post('/', authenticateToken, upload.array('images', 5), async (req: any, 
         title: title.trim(),
         content: content.trim(),
         authorId: userId,
+        authorRole: userRole as Role,
         imageUrls: imageUrls
       },
       include: {
@@ -392,12 +394,6 @@ router.post('/:id/vote', authenticateToken, async (req: any, res: any) => {
     const articleId = parseInt(req.params.id);
     const { voteType } = req.body;
     const userId = req.user.userId;
-    const userRole = req.user.role;
-
-    // Only mentees can vote on articles
-    if (userRole !== 'mentee') {
-      return res.status(403).json({ message: 'Only mentees can vote on articles' });
-    }
 
     if (!['upvote', 'downvote'].includes(voteType)) {
       return res.status(400).json({ message: 'Invalid vote type' });
@@ -415,8 +411,8 @@ router.post('/:id/vote', authenticateToken, async (req: any, res: any) => {
     // Check if user has already voted
     const existingVote = await prisma.articleVote.findUnique({
       where: {
-        menteeId_articleId: {
-          menteeId: userId,
+        voterId_articleId: {
+          voterId: userId,
           articleId: articleId
         }
       }
@@ -442,7 +438,7 @@ router.post('/:id/vote', authenticateToken, async (req: any, res: any) => {
     // Create new vote
     await prisma.articleVote.create({
       data: {
-        menteeId: userId,
+        voterId: userId,
         articleId: articleId,
         voteType: voteType as 'upvote' | 'downvote'
       }

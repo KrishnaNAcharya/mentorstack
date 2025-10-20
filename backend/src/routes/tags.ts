@@ -1,5 +1,6 @@
 import express from 'express';
 import { prisma } from '../../lib/prisma';
+import { Role } from '@prisma/client';
 
 const router = express.Router();
 
@@ -78,9 +79,10 @@ router.get('/:tagName/content', async (req: any, res: any) => {
         ]
       },
       include: {
-        mentee: {
+        author: {
           select: {
-            name: true
+            name: true,
+            role: true
           }
         },
         answers: true,
@@ -133,7 +135,8 @@ router.get('/:tagName/content', async (req: any, res: any) => {
       id: question.id,
       title: question.title,
       description: question.body.substring(0, 200) + '...',
-      authorName: question.mentee.name,
+      authorName: question.author.name,
+      authorRole: question.author.role,
       createdAt: question.createdAt,
       answerCount: question.answers.length,
       tags: question.tags.map(t => t.tag.name)

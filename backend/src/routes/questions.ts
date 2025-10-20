@@ -1,6 +1,7 @@
 import express from 'express';
 import jwt from 'jsonwebtoken';
 import { prisma } from '../../lib/prisma';
+import { Role } from '@prisma/client';
 
 const router = express.Router();
 
@@ -27,7 +28,15 @@ router.get('/', async (req: any, res: any) => {
   try {
     const questions = await prisma.question.findMany({
       include: {
-        mentee: true,
+        author: {
+          select: {
+            id: true,
+            name: true,
+            role: true,
+            email: true,
+            avatarUrl: true
+          }
+        },
         answers: true
       },
       orderBy: {
@@ -41,7 +50,8 @@ router.get('/', async (req: any, res: any) => {
       description: question.body,
       tags: [],
       createdAt: question.createdAt,
-      authorName: question.mentee.name,
+      authorName: question.author.name,
+      authorRole: question.author.role,
       answerCount: question.answers.length,
       voteScore: 0
     }));
@@ -61,8 +71,26 @@ router.get('/:id', async (req: any, res: any) => {
     const question = await prisma.question.findUnique({
       where: { id: questionId },
       include: {
-        mentee: true,
-        answers: true
+        author: {
+          select: {
+            id: true,
+            name: true,
+            role: true,
+            avatarUrl: true
+          }
+        },
+        answers: {
+          include: {
+            author: {
+              select: {
+                id: true,
+                name: true,
+                role: true,
+                avatarUrl: true
+              }
+            }
+          }
+        }
       }
     });
 
@@ -70,47 +98,23 @@ router.get('/:id', async (req: any, res: any) => {
       return res.status(404).json({ message: 'Question not found' });
     }
 
-    // Get author names for answers
-    const mentorIds = question.answers.filter((a: any) => a.userRole === 'mentor').map((a: any) => a.userId);
-    const menteeIds = question.answers.filter((a: any) => a.userRole === 'mentee').map((a: any) => a.userId);
-
-    const mentors = mentorIds.length > 0 ? await prisma.mentor.findMany({
-      where: { id: { in: mentorIds } },
-      select: { id: true, name: true }
-    }) : [];
-
-    const mentees = menteeIds.length > 0 ? await prisma.mentee.findMany({
-      where: { id: { in: menteeIds } },
-      select: { id: true, name: true }
-    }) : [];
-
-    const mentorLookup = new Map(mentors.map((m: any) => [m.id, m.name]));
-    const menteeLookup = new Map(mentees.map((m: any) => [m.id, m.name]));
-
     const formattedQuestion = {
       id: question.id,
       title: question.title,
       description: question.body,
       tags: [],
       createdAt: question.createdAt,
-      authorName: question.mentee.name,
+      authorName: question.author.name,
+      authorRole: question.author.role,
       voteScore: 0,
-      answers: question.answers.map((answer: any) => {
-        let authorName = 'Unknown';
-        if (answer.userRole === 'mentor') {
-          authorName = mentorLookup.get(answer.userId) || 'Unknown';
-        } else if (answer.userRole === 'mentee') {
-          authorName = menteeLookup.get(answer.userId) || 'Unknown';
-        }
-
-        return {
-          id: answer.id,
-          content: answer.body,
-          createdAt: answer.createdAt,
-          authorName: authorName,
-          voteScore: 0
-        };
-      })
+      answers: question.answers.map((answer: any) => ({
+        id: answer.id,
+        content: answer.body,
+        createdAt: answer.createdAt,
+        authorName: answer.author.name,
+        authorRole: answer.author.role,
+        voteScore: 0
+      }))
     };
 
     res.json(formattedQuestion);
@@ -146,7 +150,7 @@ router.post('/:questionId/answers', authenticateToken, async (req: any, res: any
 
     // Create the answer using raw SQL to bypass Prisma type issues
     const result = await prisma.$executeRaw`
-      INSERT INTO "Answer" (body, "questionId", "userId", "userRole", "createdAt", "updatedAt")
+      INSERT INTO "Answer" (body, "questionId", "authorId", "authorRole", "createdAt", "updatedAt")
       VALUES (${content.trim()}, ${questionId}, ${userId}, ${role}::"Role", NOW(), NOW())
       RETURNING id
     `;
@@ -154,25 +158,16 @@ router.post('/:questionId/answers', authenticateToken, async (req: any, res: any
     console.log('Answer created via raw SQL:', result);
 
     // Get author name based on role
-    let authorName = 'Unknown';
-    if (role === 'mentor') {
-      const mentor = await prisma.mentor.findUnique({
-        where: { id: userId },
-        select: { name: true }
-      });
-      authorName = mentor?.name || 'Unknown';
-    } else if (role === 'mentee') {
-      const mentee = await prisma.mentee.findUnique({
-        where: { id: userId },
-        select: { name: true }
-      });
-      authorName = mentee?.name || 'Unknown';
-    }
+    const author = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { name: true, role: true }
+    });
 
     const responseAnswer = {
       id: 'created',
       content: content.trim(),
-      authorName: authorName,
+      authorName: author?.name || 'Unknown',
+      authorRole: author?.role || role,
       createdAt: new Date(),
       voteScore: 0
     };

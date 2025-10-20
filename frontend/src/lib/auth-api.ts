@@ -49,6 +49,73 @@ export interface MenteeProfile {
   };
 }
 
+export interface MentorProfile {
+  id: number;
+  name: string;
+  email: string;
+  bio: string;
+  avatarUrl: string | null;
+  skills: string[];
+  location: string | null;
+  jobTitle: string | null;
+  department: string | null;
+  reputation: number;
+  joinedDate: string;
+  answers: Array<{
+    id: number;
+    content: string;
+    createdAt: string;
+    question: {
+      id: number;
+      title: string;
+      createdAt: string;
+    };
+  }>;
+  articles: Array<{
+    id: number;
+    title: string;
+    content: string;
+    createdAt: string;
+  }>;
+  connections: Array<{
+    id: number;
+    mentee: {
+      id: number;
+      name: string;
+      email: string;
+    };
+  }>;
+  mentorshipRequests: Array<{
+    id: number;
+    status: string;
+    createdAt: string;
+    mentee: {
+      id: number;
+      name: string;
+    };
+  }>;
+  stats: {
+    answersProvided: number;
+    articlesWritten: number;
+    menteesConnected: number;
+    mentorshipRequests: number;
+  };
+}
+
+export interface Mentor {
+  id: number;
+  name: string;
+  email: string;
+  bio: string;
+  avatarUrl: string | null;
+  skills: string[];
+  location: string | null;
+  reputation: number;
+  jobTitle: string | null;
+  department: string | null;
+  createdAt: string;
+}
+
 export interface Question {
   id: number;
   title: string;
@@ -279,6 +346,50 @@ class AuthAPI {
     if (!response.ok) {
       const error = await response.json();
       throw new Error(error.message || 'Failed to update profile');
+    }
+
+    return response.json();
+  }
+
+  // Mentor profile methods
+  async getMentorProfile(): Promise<MentorProfile> {
+    const response = await fetch(`${API_BASE_URL}/mentors/profile/me`, {
+      method: 'GET',
+      headers: this.getHeaders(true),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to get mentor profile');
+    }
+
+    return response.json();
+  }
+
+  async updateMentorProfile(data: { name: string; bio: string; skills: string[]; location?: string }): Promise<UpdateProfileResponse> {
+    const response = await fetch(`${API_BASE_URL}/mentors/profile/me`, {
+      method: 'PUT',
+      headers: this.getHeaders(true),
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to update profile');
+    }
+
+    return response.json();
+  }
+
+  async getMentors(): Promise<Mentor[]> {
+    const response = await fetch(`${API_BASE_URL}/mentors`, {
+      method: 'GET',
+      headers: this.getHeaders(),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to get mentors');
     }
 
     return response.json();

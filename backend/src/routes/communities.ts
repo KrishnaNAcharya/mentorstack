@@ -1,6 +1,7 @@
 import express, { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { prisma } from '../../lib/prisma';
+import { Role } from '@prisma/client';
 
 const router = express.Router();
 
@@ -56,22 +57,12 @@ router.get('/categories', async (req: any, res: any) => {
       // Get skills from all members
       for (const member of community.members) {
         try {
-          if (member.userRole === 'mentor') {
-            const mentor = await prisma.mentor.findUnique({
-              where: { id: member.userId },
-              select: { skills: true }
-            });
-            if (mentor?.skills) {
-              allSkills.push(...mentor.skills);
-            }
-          } else if (member.userRole === 'mentee') {
-            const mentee = await prisma.mentee.findUnique({
-              where: { id: member.userId },
-              select: { skills: true }
-            });
-            if (mentee?.skills) {
-              allSkills.push(...mentee.skills);
-            }
+          const user = await prisma.user.findUnique({
+            where: { id: member.userId },
+            select: { skills: true }
+          });
+          if (user?.skills) {
+            allSkills.push(...user.skills);
           }
         } catch (error) {
           console.error(`Error fetching skills for member ${member.userId}:`, error);
@@ -139,22 +130,12 @@ router.get('/', async (req: any, res: any) => {
         // Get skills from all members
         for (const member of community.members) {
           try {
-            if (member.userRole === 'mentor') {
-              const mentor = await prisma.mentor.findUnique({
-                where: { id: member.userId },
-                select: { skills: true }
-              });
-              if (mentor?.skills) {
-                memberSkills.push(...mentor.skills);
-              }
-            } else if (member.userRole === 'mentee') {
-              const mentee = await prisma.mentee.findUnique({
-                where: { id: member.userId },
-                select: { skills: true }
-              });
-              if (mentee?.skills) {
-                memberSkills.push(...mentee.skills);
-              }
+            const user = await prisma.user.findUnique({
+              where: { id: member.userId },
+              select: { skills: true }
+            });
+            if (user?.skills) {
+              memberSkills.push(...user.skills);
             }
           } catch (error) {
             console.error(`Error fetching skills for member ${member.userId}:`, error);
@@ -387,8 +368,8 @@ router.post('/:id/posts', authenticateToken, async (req: any, res: any) => {
     const post = await prisma.communityPost.create({
       data: {
         communityId: parseInt(id),
-        userRole: role as any,
-        userId: userId,
+        authorId: userId,
+        authorRole: role as Role,
         title,
         content,
         imageUrls: imageUrls || []
@@ -445,22 +426,14 @@ router.get('/:id/posts', async (req: any, res: any) => {
     // Fetch user details for each post
     const postsWithUserDetails = await Promise.all(
       posts.map(async (post) => {
-        let userName = `User${post.userId}`;
+        let userName = `User${post.authorId}`;
         
         try {
-          if (post.userRole === 'mentor') {
-            const mentor = await prisma.mentor.findUnique({
-              where: { id: post.userId },
-              select: { name: true }
-            });
-            if (mentor) userName = mentor.name;
-          } else if (post.userRole === 'mentee') {
-            const mentee = await prisma.mentee.findUnique({
-              where: { id: post.userId },
-              select: { name: true }
-            });
-            if (mentee) userName = mentee.name;
-          }
+          const user = await prisma.user.findUnique({
+            where: { id: post.authorId },
+            select: { name: true }
+          });
+          if (user) userName = user.name;
         } catch (error) {
           console.error('Error fetching user details:', error);
         }
@@ -475,9 +448,9 @@ router.get('/:id/posts', async (req: any, res: any) => {
     // Add user vote status to each post
     const postsWithUserVotes = postsWithUserDetails.map(post => {
       let userVote = null;
-      if (currentUserId && currentUserRole) {
+      if (currentUserId) {
         const userVoteRecord = post.votes.find(vote => 
-          vote.userId === currentUserId && vote.userRole === currentUserRole
+          vote.userId === currentUserId
         );
         userVote = userVoteRecord ? userVoteRecord.voteType : null;
       }
@@ -520,11 +493,12 @@ router.post('/:communityId/posts/:postId/vote', authenticateToken, async (req: a
     }
 
     // Check if user already voted
-    const existingVote = await prisma.communityPostVote.findFirst({
+    const existingVote = await prisma.communityPostVote.findUnique({
       where: {
-        userId: userId,
-        postId: parseInt(postId),
-        userRole: role as any
+        userId_postId: {
+          userId: userId,
+          postId: parseInt(postId)
+        }
       }
     });
 
@@ -547,7 +521,6 @@ router.post('/:communityId/posts/:postId/vote', authenticateToken, async (req: a
       // Create new vote
       await prisma.communityPostVote.create({
         data: {
-          userRole: role as any,
           userId: userId,
           postId: parseInt(postId),
           voteType: voteType as any

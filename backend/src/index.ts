@@ -16,7 +16,8 @@ import http from 'http';
 // inlined discussions connection handler to avoid import/init order issues
 import { prisma } from '../lib/prisma';
 import { chatRouter } from './routes/chat';
-import WebSocket, { WebSocketServer } from 'ws';
+import WebSocket, { WebSocketServer, RawData } from 'ws';
+import { IncomingMessage } from 'http';
 import url from 'url';
 import jwt from 'jsonwebtoken';
 import { getRabbitChannel, createEphemeralConsumer, publish } from './realtime/rabbit';
@@ -99,7 +100,7 @@ function authenticateFromQuery(reqUrl: string | undefined) {
 }
 
 // Assign connection handlers
-discussionsWss.on('connection', async (ws: WebSocket, req) => {
+discussionsWss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
   try {
     const parsed = url.parse(req.url || '', true);
     const communityId = Number(parsed.query.communityId);
@@ -127,7 +128,7 @@ discussionsWss.on('connection', async (ws: WebSocket, req) => {
       }
     });
 
-    ws.on('message', async (raw) => {
+    ws.on('message', async (raw: RawData) => {
       try {
         const text = raw.toString();
         const payload = JSON.parse(text);
@@ -212,7 +213,7 @@ server.on('upgrade', (request, socket, head) => {
       discussionsWss.emit('connection', ws, request);
     });
   } else if (pathname === '/ws') {
-    mainWss.handleUpgrade(request, socket, head, (ws) => {
+    mainWss.handleUpgrade(request, socket, head, (ws: WebSocket) => {
       mainWss.emit('connection', ws, request);
     });
   } else {
