@@ -309,8 +309,19 @@ class AuthAPI {
     return response.json();
   }
 
-  logout(): void {
-    localStorage.removeItem('authToken');
+  async logout(): Promise<void> {
+    try {
+      // Call backend logout endpoint
+      await fetch(`${API_BASE_URL}/auth/logout`, {
+        method: 'POST',
+        headers: this.getHeaders(true),
+      });
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      // Always remove token from localStorage, even if API call fails
+      localStorage.removeItem('authToken');
+    }
   }
 
   getToken(): string | null {

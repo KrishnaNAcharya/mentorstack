@@ -11,6 +11,13 @@ router.post('/signup', async (req: any, res: any) => {
     try {
         const { email, password, role, firstName, lastName, skills = [], bio = '' } = req.body;
 
+        console.log('📝 Signup request received:', { email, role, firstName, lastName, skills, bio });
+
+        // Validate required fields
+        if (!email || !password || !role || !firstName) {
+            return res.status(400).json({ message: 'Missing required fields' });
+        }
+
         // Check if user already exists
         const existingUser = await prisma.user.findUnique({
             where: { email }
@@ -28,8 +35,17 @@ router.post('/signup', async (req: any, res: any) => {
         // Hash password
         const hashedPassword = await bcrypt.hash(password, 12);
 
-        // Combine firstName and lastName into name field
-        const fullName = `${firstName} ${lastName}`.trim();
+        // Combine firstName and lastName into name field (handle empty lastName)
+        const fullName = `${firstName || ''} ${lastName || ''}`.trim();
+        
+        if (!fullName) {
+            return res.status(400).json({ message: 'Name cannot be empty' });
+        }
+
+        // Ensure skills is an array
+        const skillsArray = Array.isArray(skills) ? skills : [];
+
+        console.log('📝 Creating user with data:', { email, role, fullName, skillsArray, bio });
 
         // Create user with role
         const newUser = await prisma.user.create({
@@ -38,8 +54,8 @@ router.post('/signup', async (req: any, res: any) => {
                 password: hashedPassword,
                 role: role as Role,
                 name: fullName,
-                bio,
-                skills: skills,
+                bio: bio || '',
+                skills: skillsArray,
             },
             select: {
                 id: true,
@@ -75,8 +91,11 @@ router.post('/signup', async (req: any, res: any) => {
         });
 
     } catch (error) {
-        console.error('Signup error:', error);
-        res.status(500).json({ message: 'Server error' });
+        console.error('❌ Signup error:', error);
+        res.status(500).json({ 
+            message: 'Server error',
+            details: process.env.NODE_ENV === 'development' ? (error as any)?.message : undefined
+        });
     }
 });
 
@@ -124,6 +143,18 @@ router.post('/login', async (req: any, res: any) => {
 
     } catch (error) {
         console.error('Login error:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// Logout route (mainly for client-side token clearing, but can be used for logging)
+router.post('/logout', async (req: any, res: any) => {
+    try {
+        // You could log the logout event here if needed
+        // For JWT, logout is primarily handled client-side by removing the token
+        res.json({ message: 'Logged out successfully' });
+    } catch (error) {
+        console.error('Logout error:', error);
         res.status(500).json({ message: 'Server error' });
     }
 });

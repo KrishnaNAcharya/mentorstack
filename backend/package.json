@@ -38,7 +38,7 @@
     "multer": "^2.0.2",
     "next": "^15.3.5",
     "node-fetch": "^3.3.2",
-    "ws": "^8.18.0"
+    "ws": "^8.18.3"
   },
   "devDependencies": {
     "@types/amqplib": "^0.10.7",
