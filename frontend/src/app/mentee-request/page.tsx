@@ -1,76 +1,62 @@
 // pages/requests.tsx or app/requests/page.tsx
 "use client";
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Search, MessageSquare, User, Menu } from 'lucide-react';
-import Layout from "../../components/MentorLayout";
+import Layout from "../../components/Layout";
+import { authAPI } from "@/lib/auth-api";
 
 interface RequestCard {
     id: string;
+    menteeId: number;
     name: string;
+    email: string;
+    avatar?: string;
+    jobTitle?: string;
+    department?: string;
+    bio?: string;
+    skills: string[];
     status: 'Pending' | 'Accepted' | 'Rejected';
     fullMessage: string;
-    avatar?: string;
+    createdAt?: Date;
+    updatedAt?: Date;
 }
-
-const allRequests: RequestCard[] = [
-    {
-        id: '1',
-        name: 'John Doe',
-        status: 'Pending',
-        fullMessage: 'Hi, I am a junior developer looking for guidance in React development. I have been working with React for 6 months but need help with advanced patterns and state management.'
-    },
-    {
-        id: '2',
-        name: 'Jane Smith',
-        status: 'Pending',
-        fullMessage: 'I am transitioning from marketing to software development and would love guidance on making this career change successfully.'
-    },
-    {
-        id: '3',
-        name: 'Mike Johnson',
-        status: 'Accepted',
-        fullMessage: 'Looking for a mentor in data science to help me navigate machine learning projects and career advancement in the field.'
-    }
-];
 
 const RequestsPage: React.FC = () => {
     const [activeTab, setActiveTab] = useState<'All' | 'Pending' | 'Accepted' | 'Rejected'>('All');
     const [searchText, setSearchText] = useState('');
     const [loadingRequests, setLoadingRequests] = useState<Set<string>>(new Set());
     const [rejectingRequests, setRejectingRequests] = useState<Set<string>>(new Set());
-    const [requests, setRequests] = useState<RequestCard[]>(allRequests);
+    const [requests, setRequests] = useState<RequestCard[]>([]);
+    const [loading, setLoading] = useState(true);
 
     // New state for modal
     const [selectedMessage, setSelectedMessage] = useState<string | null>(null);
+
+    // Fetch requests on component mount
+    useEffect(() => {
+        fetchRequests();
+    }, []);
+
+    const fetchRequests = async () => {
+        try {
+            setLoading(true);
+            const response = await authAPI.getAllMentorshipRequests();
+            setRequests(response.requests);
+        } catch (error) {
+            console.error('Error fetching requests:', error);
+            alert('Failed to load mentorship requests. Please try again.');
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const handleAcceptRequest = async (requestId: string) => {
         setLoadingRequests(prev => new Set(prev).add(requestId));
 
         try {
-            // Backend API call (commented for now)
-            /*
-            const response = await fetch(`/api/mentorship-requests/${requestId}/accept`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`, // or your auth method
-                },
-                body: JSON.stringify({
-                    mentorId: 'current-mentor-id', // get from auth context
-                    acceptedAt: new Date().toISOString(),
-                })
-            });
-
-            if (!response.ok) {
-                throw new Error('Failed to accept request');
-            }
-
-            const result = await response.json();
-            console.log('Request accepted successfully:', result);
-            */
-
-            // Simulate API call delay
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            const response = await authAPI.acceptMentorshipRequest(requestId);
+            
+            // Update local state to reflect the acceptance
             setRequests(prevRequests =>
                 prevRequests.map(request =>
                     request.id === requestId
@@ -78,7 +64,8 @@ const RequestsPage: React.FC = () => {
                         : request
                 )
             );
-            alert('Request accepted successfully!');
+            
+            alert(`Request accepted successfully! You can now chat with ${response.data.mentee.name}.`);
         } catch (error) {
             console.error('Error accepting request:', error);
             alert('Failed to accept request. Please try again.');
@@ -95,31 +82,7 @@ const RequestsPage: React.FC = () => {
         setRejectingRequests(prev => new Set(prev).add(requestId));
 
         try {
-            // Backend API call (commented for now)
-            /*
-            const response = await fetch(`/api/mentorship-requests/${requestId}/reject`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`, // or your auth method
-                },
-                body: JSON.stringify({
-                    mentorId: 'current-mentor-id', // get from auth context
-                    rejectedAt: new Date().toISOString(),
-                    reason: 'Not a good fit' // optional rejection reason
-                })
-            });
-
-            if (!response.ok) {
-                throw new Error('Failed to reject request');
-            }
-
-            const result = await response.json();
-            console.log('Request rejected successfully:', result);
-            */
-
-            // Simulate API call delay
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            const response = await authAPI.rejectMentorshipRequest(requestId);
 
             // Update local state to reflect the rejection
             setRequests(prevRequests =>
@@ -130,9 +93,7 @@ const RequestsPage: React.FC = () => {
                 )
             );
 
-            // Show success notification
             alert('Request rejected successfully!');
-
         } catch (error) {
             console.error('Error rejecting request:', error);
             alert('Failed to reject request. Please try again.');
@@ -206,9 +167,22 @@ const RequestsPage: React.FC = () => {
                             ))}
                         </div>
 
-                        {/* Request Cards Grid */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {filteredRequests.map((request) => (
+                        {/* Loading State */}
+                        {loading ? (
+                            <div className="flex flex-col items-center justify-center py-12">
+                                <div className="animate-spin rounded-full h-12 w-12 border-b-2" style={{ borderColor: 'var(--color-primary)' }}></div>
+                                <p className="mt-4" style={{ color: 'var(--color-tertiary-light)' }}>Loading requests...</p>
+                            </div>
+                        ) : filteredRequests.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center py-12">
+                                <p className="text-lg" style={{ color: 'var(--color-tertiary-light)' }}>
+                                    {searchText ? 'No requests match your search.' : `No ${activeTab !== 'All' ? activeTab.toLowerCase() : ''} requests found.`}
+                                </p>
+                            </div>
+                        ) : (
+                            /* Request Cards Grid */
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                {filteredRequests.map((request) => (
                                 <div
                                     key={request.id}
                                     className="rounded-xl shadow-sm border transition-all duration-200 hover:shadow-lg hover:scale-105 p-6"
@@ -314,7 +288,8 @@ const RequestsPage: React.FC = () => {
                                     </div>
                                 </div>
                             ))}
-                        </div>
+                            </div>
+                        )}
                     </main>
                 </div>
             </div>

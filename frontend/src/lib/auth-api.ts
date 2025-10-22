@@ -443,6 +443,177 @@ class AuthAPI {
     return response.json();
   }
 
+  // Mentor List methods (with request status)
+  async getMentorsWithStatus(): Promise<any[]> {
+    const response = await fetch(`${API_BASE_URL}/mentor-list/mentors`, {
+      method: 'GET',
+      headers: this.getHeaders(true),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to get mentors');
+    }
+
+    return response.json();
+  }
+
+  async getMentorshipRequestsByStatus(status: 'pending' | 'accepted' | 'rejected'): Promise<any[]> {
+    const response = await fetch(`${API_BASE_URL}/mentor-list/requests/${status}`, {
+      method: 'GET',
+      headers: this.getHeaders(true),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to get requests');
+    }
+
+    return response.json();
+  }
+
+  async sendMentorshipRequest(mentorId: string, message: string): Promise<{ message: string; request: any }> {
+    const response = await fetch(`${API_BASE_URL}/mentor-list/request`, {
+      method: 'POST',
+      headers: this.getHeaders(true),
+      body: JSON.stringify({ mentorId, message }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to send request');
+    }
+
+    return response.json();
+  }
+
+  async cancelMentorshipRequest(mentorId: string): Promise<{ message: string }> {
+    const response = await fetch(`${API_BASE_URL}/mentor-list/request/${mentorId}`, {
+      method: 'DELETE',
+      headers: this.getHeaders(true),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to cancel request');
+    }
+
+    return response.json();
+  }
+
+  async getMentorStats(mentorId: string): Promise<{
+    answersProvided: number;
+    articlesWritten: number;
+    activeConnections: number;
+    totalAcceptedRequests: number;
+    reputation: number;
+  }> {
+    const response = await fetch(`${API_BASE_URL}/mentor-list/mentor/${mentorId}/stats`, {
+      method: 'GET',
+      headers: this.getHeaders(true),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to get mentor stats');
+    }
+
+    return response.json();
+  }
+
+  // ==================== Mentee Request Methods (For Mentors) ====================
+  
+  // Get all mentorship requests for the current mentor
+  async getAllMentorshipRequests(): Promise<{
+    success: boolean;
+    requests: Array<{
+      id: string;
+      menteeId: number;
+      name: string;
+      email: string;
+      avatar?: string;
+      jobTitle?: string;
+      department?: string;
+      bio?: string;
+      skills: string[];
+      status: 'Pending' | 'Accepted' | 'Rejected';
+      fullMessage: string;
+      createdAt: Date;
+      updatedAt: Date;
+    }>;
+    total: number;
+  }> {
+    const response = await fetch(`${API_BASE_URL}/mentee-request/requests`, {
+      method: 'GET',
+      headers: this.getHeaders(true),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to fetch mentorship requests');
+    }
+
+    return response.json();
+  }
+
+  // Accept a mentorship request (creates connection and conversation)
+  async acceptMentorshipRequest(requestId: string): Promise<{
+    success: boolean;
+    message: string;
+    data: {
+      requestId: number;
+      status: string;
+      connectionId: number;
+      conversationId: number;
+      mentee: {
+        id: number;
+        name: string;
+        email: string;
+        avatarUrl?: string;
+      };
+    };
+  }> {
+    const response = await fetch(`${API_BASE_URL}/mentee-request/accept/${requestId}`, {
+      method: 'POST',
+      headers: this.getHeaders(true),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to accept request');
+    }
+
+    return response.json();
+  }
+
+  // Reject a mentorship request
+  async rejectMentorshipRequest(requestId: string): Promise<{
+    success: boolean;
+    message: string;
+    data: {
+      requestId: number;
+      status: string;
+      mentee: {
+        id: number;
+        name: string;
+        email: string;
+        avatarUrl?: string;
+      };
+    };
+  }> {
+    const response = await fetch(`${API_BASE_URL}/mentee-request/reject/${requestId}`, {
+      method: 'POST',
+      headers: this.getHeaders(true),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to reject request');
+    }
+
+    return response.json();
+  }
+
   // Questions methods
   async getQuestions(): Promise<Question[]> {
     const response = await fetch(`${API_BASE_URL}/questions`, {

@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
+import { authAPI } from "@/lib/auth-api";
 
 interface MenuItem {
   name: string;
@@ -18,21 +20,54 @@ const Sidebar = ({
   isOpen = true,
   onClose,
   className = "",
-  menuItems = [
-    { name: "Home", href: "/home" },
-    { name: "Questions", href: "/questions" },
-    { name: "Mentors", href: "/mentor-list" },
-    { name: "Chats", href: "/chats" },
-    { name: "Community", href: "/community" },
-    { name: "Profile", href: "/profile" },
-    { name: "Tags", href: "/tags" },
-    { name: "Articles", href: "/articles" },
-    { name: "Bookmarks", href: "#" },
-    //{ name: "About Us", href: "/about" },
-    { name: "Contact", href: "/contact" },
-    { name: "Help", href: "#" },
-  ],
+  menuItems,
 }: SidebarProps) => {
+  const [userRole, setUserRole] = useState<'mentor' | 'mentee' | 'admin' | null>(null);
+  const [dynamicMenuItems, setDynamicMenuItems] = useState<MenuItem[]>([]);
+
+  useEffect(() => {
+    async function fetchUserRole() {
+      try {
+        const response = await authAPI.getCurrentUser();
+        setUserRole(response.user.role);
+      } catch (error) {
+        console.error('Failed to fetch user role:', error);
+      }
+    }
+    fetchUserRole();
+  }, []);
+
+  useEffect(() => {
+    // Build menu items based on role
+    const baseMenuItems: MenuItem[] = [
+      { name: "Home", href: "/home" },
+      { name: "Questions", href: "/questions" },
+    ];
+
+    // Role-specific menu items
+    if (userRole === 'mentor') {
+      baseMenuItems.push({ name: "Requests", href: "/mentee-request" });
+    } else if (userRole === 'mentee') {
+      baseMenuItems.push({ name: "Mentors", href: "/mentor-list" });
+    }
+
+    // Common menu items for all roles
+    baseMenuItems.push(
+      { name: "Chats", href: "/chats" },
+      { name: "Community", href: "/community" },
+      { name: "Profile", href: "/profile" },
+      { name: "Tags", href: "/tags" },
+      { name: "Articles", href: "/articles" },
+      { name: "Bookmarks", href: "#" },
+      { name: "Contact", href: "/contact" },
+      { name: "Help", href: "#" }
+    );
+
+    setDynamicMenuItems(baseMenuItems);
+  }, [userRole]);
+
+  // Use provided menuItems or dynamically generated ones
+  const finalMenuItems = menuItems || dynamicMenuItems;
   return (
     <>
       {/* Overlay for mobile */}
@@ -69,7 +104,7 @@ const Sidebar = ({
         </div>
 
         <nav className="flex flex-col gap-3">
-          {menuItems.map((item) => (
+          {finalMenuItems.map((item) => (
             <Link
               key={item.name}
               href={item.href}
