@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Layout from '@/components/Layout';
 import { authAPI, Question } from '@/lib/auth-api';
+import SpellingChecker from '@/components/SpellingChecker';
 import {
   Bold,
   Italic,
@@ -767,12 +768,13 @@ export default function QuestionDetailPage() {
                   {/* Editor */}
                   {!showPreview ? (
                     <div className="space-y-4">
-                      <textarea
+                      <SpellingChecker
                         ref={editorRef}
                         value={answerContent}
-                        onChange={(e) => setAnswerContent(e.target.value)}
-                        className="w-full h-64 p-4 border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm"
+                        onChange={setAnswerContent}
                         placeholder="Write your answer here... Be specific and provide examples when possible. You can use Markdown for formatting."
+                        rows={12}
+                        className="w-full p-4 border rounded-lg resize-none font-mono text-sm"
                         onKeyDown={(e) => {
                           if (e.ctrlKey || e.metaKey) {
                             switch (e.key) {

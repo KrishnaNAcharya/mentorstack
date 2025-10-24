@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
 import axios from 'axios';
 
 interface Suggestion {
@@ -17,273 +17,521 @@ interface Props {
     placeholder?: string;
     className?: string;
     rows?: number;
+    onKeyDown?: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
 }
 
-export default function SpellingChecker({ value, onChange, placeholder, className = '', rows = 4 }: Props) {
-    const [suggestion, setSuggestion] = useState<Suggestion | null>(null);
-    const [position, setPosition] = useState({ top: 0, left: 0 });
-    const [loading, setLoading] = useState(false);
-    const [lastSuggestions, setLastSuggestions] = useState<Suggestion[]>([]);
-    const [showAllPanel, setShowAllPanel] = useState(false);
-    const textareaRef = useRef<HTMLTextAreaElement | null>(null);
-    const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-    const mirrorRef = useRef<HTMLDivElement | null>(null);
+const SpellingChecker = forwardRef<HTMLTextAreaElement, Props>(({ 
+    value, 
+    onChange, 
+    placeholder = "Start typing...", 
+    className = '', 
+    rows = 4,
+    onKeyDown
+}, ref) => {
+    const [allSuggestions, setAllSuggestions] = useState<Suggestion[]>([]);
+    const [activeSuggestion, setActiveSuggestion] = useState<Suggestion | null>(null);
+    const [popupPosition, setPopupPosition] = useState({ top: 0, left: 0 });
+    const [isChecking, setIsChecking] = useState(false);
+    const [justCorrected, setJustCorrected] = useState(false);
+    
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const popupRef = useRef<HTMLDivElement>(null);
+    const checkTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-    // parse responses from backend/model into Suggestion[]
-    const parseSuggestions = (data: any): Suggestion[] => {
-        if (!data) return [];
-        if (Array.isArray(data)) return data as Suggestion[];
-        if (Array.isArray(data.suggestions)) return data.suggestions as Suggestion[];
-        if (Array.isArray(data.suggestion)) return data.suggestion as Suggestion[];
-        return [];
-    };
+    // Expose the textarea ref to parent component
+    useImperativeHandle(ref, () => textareaRef.current as HTMLTextAreaElement);
 
-    // find suggestion that contains cursor, or null
-    const findSuggestionAtCursor = (suggestions: Suggestion[], cursorPos: number): Suggestion | null => {
-        for (const s of suggestions) {
-            const start0 = Number(s.offset);
-            const len = Number(s.length);
-            if (Number.isNaN(start0) || Number.isNaN(len)) continue;
-            const startCandidates = [start0, Math.max(0, start0 - 1)];
-            for (const start of startCandidates) {
-                if (cursorPos >= start && cursorPos < start + len) return s;
+    // Cleanup on unmount
+    useEffect(() => {
+        return () => {
+            if (checkTimeoutRef.current) {
+                clearTimeout(checkTimeoutRef.current);
             }
-        }
-        return null;
-    };
+        };
+    }, []);
 
-    // find nearest suggestion to cursorPos
-    const findNearestSuggestion = (suggestions: Suggestion[], cursorPos: number): Suggestion | null => {
-        let nearest: Suggestion | null = null;
-        let bestDist = Infinity;
-        for (const s of suggestions) {
-            const start = Number(s.offset) || 0;
-            const len = Number(s.length) || 0;
-            const dist = Math.max(0, Math.min(Math.abs(cursorPos - start), Math.abs(cursorPos - (start + len))));
-            if (dist < bestDist) {
-                bestDist = dist;
-                nearest = s;
+    // Close popup when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (e: MouseEvent) => {
+            if (popupRef.current && !popupRef.current.contains(e.target as Node) && 
+                textareaRef.current && !textareaRef.current.contains(e.target as Node)) {
+                setActiveSuggestion(null);
             }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    // Get cursor/caret position in pixels
+    const getCaretCoordinates = useCallback((textarea: HTMLTextAreaElement, position: number) => {
+        const div = document.createElement('div');
+        const style = getComputedStyle(textarea);
+        
+        // Copy all relevant styles
+        const stylesToCopy = [
+            'font', 'fontSize', 'fontFamily', 'fontWeight', 'wordWrap', 'whiteSpace',
+            'lineHeight', 'padding', 'borderLeftWidth', 'borderTopWidth', 'letterSpacing'
+        ];
+        
+        for (const prop of stylesToCopy) {
+            div.style[prop as any] = style[prop as any];
         }
-        return nearest;
-    };
-
-    // compute caret coordinates using a mirror div for accurate placement
-    const computeCaretCoordinates = (text: string, pos: number) => {
-        const ta = textareaRef.current;
-        if (!ta) return { top: 0, left: 0 };
-
-        // create mirror if needed
-        let mirror = mirrorRef.current;
-        if (!mirror) {
-            mirror = document.createElement('div');
-            mirror.style.position = 'absolute';
-            mirror.style.visibility = 'hidden';
-            mirror.style.whiteSpace = 'pre-wrap';
-            mirror.style.wordWrap = 'break-word';
-            mirror.style.boxSizing = 'border-box';
-            document.body.appendChild(mirror);
-            mirrorRef.current = mirror;
-        }
-
-        const style = getComputedStyle(ta);
-        mirror.style.width = `${ta.clientWidth}px`;
-        mirror.style.font = style.font;
-        mirror.style.padding = style.padding;
-        mirror.style.border = style.border;
-        mirror.style.lineHeight = style.lineHeight;
-        mirror.style.letterSpacing = style.letterSpacing;
-
-        const beforeText = text.slice(0, pos);
+        
+        div.style.position = 'absolute';
+        div.style.visibility = 'hidden';
+        div.style.width = `${textarea.clientWidth}px`;
+        div.style.height = 'auto';
+        div.style.overflow = 'hidden';
+        
+        const textContent = textarea.value.substring(0, position);
+        div.textContent = textContent;
+        
         const span = document.createElement('span');
-        mirror.textContent = '';
-        // set text content with a placeholder span at the caret
-    const safe = beforeText.replaceAll('&', '&amp;').replaceAll('<', '&lt;');
-    mirror.innerHTML = safe.replaceAll('\n', '<br/>');
-        mirror.appendChild(span);
-
-        const mirrorRect = mirror.getBoundingClientRect();
+        span.textContent = textarea.value.substring(position) || '.';
+        div.appendChild(span);
+        
+        document.body.appendChild(div);
+        
+        const rect = textarea.getBoundingClientRect();
         const spanRect = span.getBoundingClientRect();
-        const taRect = ta.getBoundingClientRect();
+        const divRect = div.getBoundingClientRect();
+        
+        const coordinates = {
+            top: rect.top + (spanRect.top - divRect.top) - textarea.scrollTop,
+            left: rect.left + (spanRect.left - divRect.left) - textarea.scrollLeft
+        };
+        
+        div.remove();
+        return coordinates;
+    }, []);
 
-        const top = spanRect.top - mirrorRect.top + taRect.top - ta.scrollTop;
-        const left = spanRect.left - mirrorRect.left + taRect.left - ta.scrollLeft;
-        return { top, left };
-    };
-
-    const checkSpelling = async (text: string, cursorPos: number) => {
-        if (!text || text.length < 3) {
-            setSuggestion(null);
-            setLastSuggestions([]);
+    // Check spelling with API
+    const checkSpelling = useCallback(async (text: string) => {
+        if (!text || text.trim().length < 2) {
+            setAllSuggestions([]);
+            setActiveSuggestion(null);
             return;
         }
 
-        setLoading(true);
+        setIsChecking(true);
         try {
-            const res = await axios.post('http://localhost:5000/api/spellcheck', { text });
-            console.debug('spellcheck response:', res.data);
-            const suggestions = parseSuggestions(res.data);
-            setLastSuggestions(suggestions);
-
-            const atCursor = findSuggestionAtCursor(suggestions, cursorPos);
-            if (atCursor) {
-                const coords = computeCaretCoordinates(text, cursorPos);
-                setPosition({ top: coords.top, left: coords.left });
-                setSuggestion(atCursor);
-                setLoading(false);
-                return;
+            const response = await axios.post('http://localhost:5000/api/spellcheck', { text });
+            let suggestions = Array.isArray(response.data?.suggestions) 
+                ? response.data.suggestions 
+                : [];
+            
+            // VALIDATION: Filter out multi-word errors and FIX bad offsets (AI mistakes)
+            const validatedSuggestions: Suggestion[] = [];
+            
+            for (const sug of suggestions) {
+                const word = sug.word || '';
+                
+                // Reject if word contains spaces (multiple words grouped together)
+                if (word.includes(' ')) {
+                    console.warn('🚫 Rejected multi-word error:', word);
+                    continue;
+                }
+                
+                // Reject if word is suspiciously long (probably multiple words)
+                if (word.length > 30) {
+                    console.warn('🚫 Rejected overly long word:', word);
+                    continue;
+                }
+                
+                // CRITICAL: Filter out useless suggestions where all corrections are the same as the original word
+                if (Array.isArray(sug.suggestions)) {
+                    const wordLowerCase = word.toLowerCase().trim();
+                    const validCorrections = sug.suggestions.filter((correction: string) => {
+                        const correctionLower = (correction || '').toLowerCase().trim();
+                        return correctionLower !== wordLowerCase && correctionLower.length > 0;
+                    });
+                    
+                    // If no valid corrections after filtering, skip this suggestion
+                    if (validCorrections.length === 0) {
+                        console.warn('🚫 Rejected suggestion with no valid corrections:', word);
+                        continue;
+                    }
+                    
+                    // Update suggestions with only valid corrections
+                    sug.suggestions = validCorrections;
+                }
+                
+                // CRITICAL: Find the ACTUAL position of this word in the text
+                const wordLower = word.toLowerCase();
+                const actualText = text.substring(sug.offset, sug.offset + sug.length);
+                const actualLower = actualText.toLowerCase();
+                
+                let finalOffset = sug.offset;
+                let finalLength = sug.length;
+                
+                // If the word at the AI's offset doesn't match, search for it
+                if (actualLower !== wordLower) {
+                    console.warn('⚠️ AI offset mismatch, searching for word:', {
+                        aiSays: word,
+                        actualTextAtOffset: actualText,
+                        aiOffset: sug.offset
+                    });
+                    
+                    // Search for the word in the text (case-insensitive)
+                    const escapedWord = word.split('').map((char: string) => {
+                        if (/[.*+?^${}()|[\]\\]/.test(char)) {
+                            return '\\' + char;
+                        }
+                        return char;
+                    }).join('');
+                    
+                    const wordRegex = new RegExp(`\\b${escapedWord}\\b`, 'i');
+                    const match = text.match(wordRegex);
+                    
+                    if (match && match.index !== undefined) {
+                        finalOffset = match.index;
+                        finalLength = match[0].length;
+                        console.log('✅ Found correct position:', { word, offset: finalOffset, length: finalLength });
+                    } else {
+                        console.warn('🚫 Could not find word in text, skipping:', word);
+                        continue; // Skip this suggestion
+                    }
+                }
+                
+                // Add the validated suggestion with corrected offset
+                validatedSuggestions.push({
+                    ...sug,
+                    offset: finalOffset,
+                    length: finalLength
+                });
             }
-
-            const nearest = findNearestSuggestion(suggestions, cursorPos);
-            if (nearest) {
-                const coords = computeCaretCoordinates(text, Number(nearest.offset) || 0);
-                setPosition({ top: coords.top, left: coords.left });
-                setSuggestion(nearest);
-                setLoading(false);
-                return;
-            }
-
-            setSuggestion(null);
+            
+            setAllSuggestions(validatedSuggestions);
         } catch (error) {
-            console.error(error);
+            console.error('Spellcheck error:', error);
+            setAllSuggestions([]);
         } finally {
-            setLoading(false);
+            setIsChecking(false);
+        }
+    }, []);
+
+    // Debounced spellcheck on text change
+    const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+        const newValue = e.target.value;
+        onChange(newValue);
+        
+        // Clear existing timeout
+        if (checkTimeoutRef.current) {
+            clearTimeout(checkTimeoutRef.current);
+        }
+        
+        // Debounce spellcheck
+        checkTimeoutRef.current = setTimeout(() => {
+            checkSpelling(newValue);
+        }, 500);
+    };
+
+    // Handle click on textarea - show popup if clicking on misspelled word
+    const handleTextareaClick = (e: React.MouseEvent<HTMLTextAreaElement>) => {
+        const textarea = e.currentTarget;
+        const cursorPos = textarea.selectionStart;
+        
+        // Find if cursor is on or NEAR a misspelled word (more forgiving)
+        let matchedSuggestion = null;
+        let bestDistance = Infinity;
+        
+        for (const s of allSuggestions) {
+            const wordStart = s.offset;
+            const wordEnd = s.offset + s.length;
+            
+            // Check if cursor is INSIDE the word
+            if (cursorPos >= wordStart && cursorPos <= wordEnd) {
+                matchedSuggestion = s;
+                break; // Direct hit, use this
+            }
+            
+            // Check if cursor is NEAR the word (within 2 characters)
+            const distanceToStart = Math.abs(cursorPos - wordStart);
+            const distanceToEnd = Math.abs(cursorPos - wordEnd);
+            const minDistance = Math.min(distanceToStart, distanceToEnd);
+            
+            if (minDistance < bestDistance && minDistance <= 2) {
+                bestDistance = minDistance;
+                matchedSuggestion = s;
+            }
+        }
+        
+        if (matchedSuggestion) {
+            const coords = getCaretCoordinates(textarea, matchedSuggestion.offset);
+            setPopupPosition({
+                top: coords.top + 25,
+                left: coords.left
+            });
+            setActiveSuggestion(matchedSuggestion);
+        } else {
+            setActiveSuggestion(null);
         }
     };
 
-    const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-        const newText = e.target.value;
-        onChange(newText);
-
-        if (timeoutRef.current) clearTimeout(timeoutRef.current);
-
-        timeoutRef.current = setTimeout(() => {
-            checkSpelling(newText, e.target.selectionStart);
-        }, 1000) as unknown as NodeJS.Timeout;
+    // Apply correction with smart position handling
+    const applyCorrection = (correction: string) => {
+        if (!activeSuggestion) return;
+        
+        // CRITICAL: Find the ACTUAL word in the current text
+        // The AI's offsets might be stale if previous corrections were made
+        
+        const aiWord = activeSuggestion.word.toLowerCase();
+        const startPos = activeSuggestion.offset;
+        
+        // Strategy: Look for the word near the suggested offset
+        // This handles cases where previous corrections shifted positions
+        
+        let actualStart = -1;
+        let actualEnd = -1;
+        
+        // First, try the exact position the AI suggested
+        const wordAtOffset = value.substring(startPos, startPos + activeSuggestion.length);
+        if (wordAtOffset.toLowerCase() === aiWord) {
+            actualStart = startPos;
+            actualEnd = startPos + activeSuggestion.length;
+        } else {
+            // If not found at exact position, search nearby (within 10 chars)
+            const searchStart = Math.max(0, startPos - 10);
+            const searchEnd = Math.min(value.length, startPos + 20);
+            const searchText = value.substring(searchStart, searchEnd);
+            
+            // Escape special regex characters in the word
+            const escapedWord = aiWord.split('').map(char => {
+                if (/[.*+?^${}()|[\]\\]/.test(char)) {
+                    return '\\' + char;
+                }
+                return char;
+            }).join('');
+            
+            const wordRegex = new RegExp(`\\b${escapedWord}\\b`, 'i');
+            const match = searchText.match(wordRegex);
+            
+            if (match && match.index !== undefined) {
+                actualStart = searchStart + match.index;
+                actualEnd = actualStart + match[0].length;
+            }
+        }
+        
+        // If we couldn't find the word, abort
+        if (actualStart === -1) {
+            console.error('❌ Could not find word to replace:', aiWord);
+            setActiveSuggestion(null);
+            return;
+        }
+        
+        const before = value.substring(0, actualStart);
+        const after = value.substring(actualEnd);
+        const originalWord = value.substring(actualStart, actualEnd);
+        
+        console.log('🔍 Replacing:', {
+            original: originalWord,
+            correction: correction,
+            position: `${actualStart}-${actualEnd}`,
+            aiSuggestedPos: `${startPos}-${startPos + activeSuggestion.length}`,
+            match: actualStart === startPos ? 'exact' : 'nearby'
+        });
+        
+        const newValue = before + correction + after;
+        
+        onChange(newValue);
+        setActiveSuggestion(null);
+        
+        // Show success animation
+        setJustCorrected(true);
+        setTimeout(() => setJustCorrected(false), 1000);
+        
+        // Recheck immediately to get fresh offsets
+        setTimeout(() => checkSpelling(newValue), 100);
     };
 
-    const handleCursorActivity = () => {
-        const el = textareaRef.current;
-        if (!el) return;
-        // selectionStart may not be updated until event completes; read it on next tick
-        setTimeout(() => {
-            const pos = textareaRef.current?.selectionStart ?? 0;
-            checkSpelling(value, pos);
-        }, 0);
+    // Ignore this suggestion
+    const ignoreSuggestion = () => {
+        if (!activeSuggestion) return;
+        
+        setAllSuggestions(prev => 
+            prev.filter(s => s.offset !== activeSuggestion.offset)
+        );
+        setActiveSuggestion(null);
     };
 
-    const applySuggestion = (correction: string) => {
-        if (!suggestion) return;
-
-        const newText =
-            value.slice(0, suggestion.offset) +
-            correction +
-            value.slice(suggestion.offset + suggestion.length);
-
-        onChange(newText);
-        setSuggestion(null);
-        setShowAllPanel(false);
-        // re-run check near the replaced word
-        setTimeout(() => checkSpelling(newText, (suggestion.offset || 0) + correction.length), 200);
-    };
-
-    const applySuggestionFor = (sug: Suggestion, correction: string) => {
-        const start = Number(sug.offset) || 0;
-        const length = Number(sug.length) || 0;
-        const newText = value.slice(0, start) + correction + value.slice(start + length);
-        onChange(newText);
-        // close panels and refresh suggestions
-        setShowAllPanel(false);
-        setSuggestion(null);
-        setTimeout(() => checkSpelling(newText, start + correction.length), 200);
+    // Render text with underlines for errors
+    const renderHighlightedText = () => {
+        if (allSuggestions.length === 0) return null;
+        
+        const parts: React.ReactElement[] = [];
+        let lastIndex = 0;
+        let partIndex = 0;
+        
+        for (const sug of allSuggestions) {
+            // Use EXACT offsets from AI (no expansion)
+            const startPos = sug.offset;
+            const endPos = sug.offset + sug.length;
+            
+            // Text before error
+            if (startPos > lastIndex) {
+                parts.push(
+                    <span key={`text-before-${partIndex}`}>
+                        {value.substring(lastIndex, startPos)}
+                    </span>
+                );
+                partIndex++;
+            }
+            
+            // Highlighted error (exact word only)
+            parts.push(
+                <span
+                    key={`error-${startPos}-${sug.word}`}
+                    className="relative underline decoration-wavy decoration-red-500 decoration-2 cursor-pointer"
+                    style={{ textUnderlineOffset: '3px' }}
+                >
+                    {value.substring(startPos, endPos)}
+                </span>
+            );
+            partIndex++;
+            
+            lastIndex = endPos;
+        }
+        
+        // Remaining text
+        if (lastIndex < value.length) {
+            parts.push(
+                <span key="text-end">
+                    {value.substring(lastIndex)}
+                </span>
+            );
+        }
+        
+        return parts;
     };
 
     return (
         <div className="relative">
-            <textarea
-                ref={textareaRef}
-                value={value}
-                onChange={handleChange}
-                onClick={handleCursorActivity}
-                onKeyUp={handleCursorActivity}
-                onSelect={handleCursorActivity}
-                onFocus={handleCursorActivity}
-                placeholder={placeholder}
-                className={`w-full p-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${className}`}
-                rows={rows}
-            />
+            {/* Highlighted overlay */}
+            <div className="relative">
+                <div
+                    className="absolute inset-0 pointer-events-none whitespace-pre-wrap break-words p-4 border border-transparent rounded-lg"
+                    style={{
+                        font: 'inherit',
+                        fontSize: 'inherit',
+                        lineHeight: 'inherit',
+                        color: 'transparent',
+                        zIndex: 1
+                    }}
+                    aria-hidden="true"
+                >
+                    {renderHighlightedText()}
+                </div>
+                
+                {/* Actual textarea */}
+                <textarea
+                    ref={textareaRef}
+                    value={value}
+                    onChange={handleTextChange}
+                    onClick={handleTextareaClick}
+                    onKeyDown={onKeyDown}
+                    placeholder={placeholder}
+                    className={`relative w-full p-4 border rounded-lg resize-none
+                        focus:outline-none
+                        transition-all duration-200
+                        ${justCorrected ? 'ring-2 ring-green-400 hover:border-primary border-green-400' : 'border-gray-300 focus:border-gray-400'}
+                        ${className}`}
+                    style={{
+                        background: 'transparent',
+                        caretColor: 'black',
+                        zIndex: 2
+                    }}
+                    rows={rows}
+                    spellCheck={false}
+                />
+            </div>
 
-            {loading && (
-                <div className="absolute top-2 right-2 text-xs text-gray-500">
+            {/* Checking indicator */}
+            {isChecking && (
+                <div className="absolute top-2 right-2 flex items-center gap-2 text-xs text-gray-500 bg-white px-2 py-1 rounded shadow-sm z-10">
+                    <div className="animate-spin h-3 w-3 border-2 border-gray-400 border-t-transparent rounded-full" />
                     Checking...
                 </div>
             )}
 
-            {suggestion && !showAllPanel && (
+            {/* Suggestions count badge */}
+            {allSuggestions.length > 0 && !isChecking && (
+                <div className="absolute bottom-2 right-2 flex items-center gap-1 text-xs text-white bg-red-500 px-2 py-1 rounded-full shadow-sm z-10">
+                    <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                    </svg>
+                    {allSuggestions.length} {allSuggestions.length === 1 ? 'error' : 'errors'}
+                </div>
+            )}
+
+            {/* Correction popup */}
+            {activeSuggestion && (
                 <div
-                    className="absolute bg-gray-800 text-white rounded-lg shadow-2xl p-4 z-50 w-64"
+                    ref={popupRef}
+                    className="fixed bg-white rounded-lg shadow-2xl border border-gray-200 p-3 z-50 min-w-[200px] max-w-[280px]"
                     style={{
-                        top: `${position.top + 30}px`,
-                        left: `${position.left + 10}px`
+                        top: `${popupPosition.top}px`,
+                        left: `${popupPosition.left}px`
                     }}
                 >
-                    <div className="mb-3">
-                        <p className="font-semibold text-sm">Spelling</p>
-                        <p className="text-xs text-gray-300">{suggestion.message}</p>
+                    {/* Header */}
+                    <div className="flex items-start justify-between mb-2 pb-2 border-b border-gray-200">
+                        <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                                <span className="font-semibold text-sm text-red-600 line-through">
+                                    {value.substring(activeSuggestion.offset, activeSuggestion.offset + activeSuggestion.length)}
+                                </span>
+                                <svg className="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                </svg>
+                            </div>
+                            <div className="text-xs text-gray-500">
+                                {activeSuggestion.message}
+                            </div>
+                        </div>
+                        <button
+                            onClick={() => setActiveSuggestion(null)}
+                            className="text-gray-400 hover:text-gray-600 ml-2"
+                        >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
                     </div>
 
-                    <div className="space-y-1 mb-3">
-                        {suggestion.suggestions.slice(0, 5).map((correction) => (
+                    {/* Suggestions */}
+                    <div className="space-y-1">
+                        {activeSuggestion.suggestions.slice(0, 5).map((correction, index) => (
                             <button
-                                key={`${suggestion.word}-${suggestion.offset}-${correction}`}
-                                onClick={() => applySuggestion(correction)}
-                                className="w-full text-left px-3 py-2 rounded hover:bg-gray-700 text-sm"
+                                key={`suggestion-${activeSuggestion.offset}-${index}`}
+                                onClick={() => applyCorrection(correction)}
+                                className="w-full text-left px-3 py-2 rounded-md hover:bg-blue-50 
+                                    text-sm text-gray-700 transition-colors flex items-center justify-between group"
                             >
-                                {correction}
+                                <span className="font-medium">{correction}</span>
+                                <svg className="w-4 h-4 text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity" 
+                                    fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                </svg>
                             </button>
                         ))}
                     </div>
 
-                    <div className="flex items-center justify-between pt-2 border-t border-gray-700">
+                    {/* Actions */}
+                    <div className="mt-2 pt-2 border-t border-gray-200">
                         <button
-                            onClick={() => setSuggestion(null)}
-                            className="text-xs text-gray-400 hover:text-white"
+                            onClick={ignoreSuggestion}
+                            className="text-xs text-gray-500 hover:text-gray-700 transition-colors"
                         >
-                            Ignore all
+                            Ignore
                         </button>
-                        <button
-                            onClick={() => setShowAllPanel(true)}
-                            className="text-xs text-gray-400 hover:text-white"
-                        >
-                            Show all
-                        </button>
-                    </div>
-                </div>
-            )}
-
-            {/* All suggestions panel (debug / fallback). Hidden when a per-word popup is active unless user opens it */}
-            {lastSuggestions.length > 0 && (showAllPanel || !suggestion) && (
-                <div className="absolute left-2 bottom-2 bg-white border rounded p-2 shadow text-sm z-40">
-                    <div className="flex items-center justify-between mb-1">
-                        <div className="font-semibold">Suggestions</div>
-                        <button onClick={() => setShowAllPanel(false)} className="text-xs text-gray-500">Close</button>
-                    </div>
-                    <div className="max-h-36 overflow-auto">
-                        {lastSuggestions.map((s) => (
-                            <div key={`${s.word}-${s.offset}`} className="mb-1">
-                                <div className="text-xs text-gray-500">{s.word}</div>
-                                <div className="flex flex-wrap gap-1 mt-1">
-                                    {s.suggestions.slice(0, 4).map((corr) => (
-                                        <button key={`${s.word}-${s.offset}-${corr}`} onClick={() => applySuggestionFor(s, corr)} className="px-2 py-1 bg-gray-100 rounded text-xs hover:bg-gray-200">
-                                            {corr}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                        ))}
                     </div>
                 </div>
             )}
         </div>
     );
-}
+});
+
+SpellingChecker.displayName = 'SpellingChecker';
+
+export default SpellingChecker;

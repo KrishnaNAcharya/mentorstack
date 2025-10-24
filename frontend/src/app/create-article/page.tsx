@@ -3,6 +3,7 @@ import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { authAPI } from "../../lib/auth-api";
+import SpellingChecker from "../../components/SpellingChecker";
 import {
     Code as CodeIcon,
     Link as LinkIcon,
@@ -541,14 +542,12 @@ export default function CreateArticle() {
                                     <p className="text-sm text-[#0e1921] mb-3">
                                         Provide a brief summary of your article (150-300 characters)
                                     </p>
-                                    <textarea
-                                        id="description"
+                                    <SpellingChecker
                                         value={description}
-                                        onChange={(e) => setDescription(e.target.value)}
-                                        rows={4}
-                                        className="w-full px-4 py-3 bg-[#e6fcf1] border border-[#a8e4c9] rounded-lg text-[#172A3A] placeholder-[#3d4e5c] focus:outline-none focus:ring-2 focus:ring-[#06a395] focus:border-[#06a395] resize-vertical transition-all"
+                                        onChange={setDescription}
                                         placeholder="Describe what your article covers and what readers will learn..."
-                                        required
+                                        rows={4}
+                                        className="w-full px-4 py-3 bg-[#e6fcf1] border border-[#a8e4c9] rounded-lg text-[#172A3A] placeholder-[#3d4e5c] resize-vertical transition-all"
                                     />
                                     <div className="text-xs text-[#3d4e5c] mt-1">
                                         {description.length}/300 characters

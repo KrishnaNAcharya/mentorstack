@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Layout from '../../components/Layout';
 import SpellingChecker from '../../components/SpellingChecker';
+import SimilarQuestionsSuggester from '../../components/SimilarQuestionsSuggester';
 import { authAPI } from '@/lib/auth-api';
 
 const QuestionForm = () => {
@@ -306,6 +307,12 @@ const QuestionForm = () => {
                 </div>
               </div>
 
+              {/* Similar Questions Suggester */}
+              <SimilarQuestionsSuggester 
+                questionText={title + ' ' + description}
+                className="animate-fade-in"
+              />
+
               {/* Quick Tips */}
               <div className="glassmorphism rounded-2xl p-6">
                 <h3 className="font-semibold text-tertiary mb-4 flex items-center">
@@ -344,11 +351,12 @@ const QuestionForm = () => {
                   <label className="block text-lg font-semibold text-tertiary">
                     Describe your problem
                   </label>
-                  <textarea
+                  <SpellingChecker
                     value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    className="input-field w-full h-52 p-4 rounded-xl resize-none focus:outline-none"
+                    onChange={setDescription}
                     placeholder="Explain the context, what you're building, and what specific issue you're facing..."
+                    rows={8}
+                    className="input-field border-primary hover:border-primary-dark w-full p-4 rounded-xl resize-none focus:outline-none"
                   />
                   <div className={`text-sm ${description.length >= 20 ? 'text-primary' : 'text-gray-400'}`}>
                     {description.length >= 20 ? '✓ Great detail' : `${20 - description.length} more characters needed`}
@@ -359,11 +367,12 @@ const QuestionForm = () => {
                   <label className="block text-lg font-semibold text-tertiary">
                     What have you tried?
                   </label>
-                  <textarea
+                  <SpellingChecker
                     value={expectedOutcome}
-                    onChange={(e) => setExpectedOutcome(e.target.value)}
-                    className="input-field w-full h-52 p-4 rounded-xl resize-none focus:outline-none"
+                    onChange={setExpectedOutcome}
                     placeholder="Share your attempts, what you expected to happen, and what actually occurred..."
+                    rows={8}
+                    className="input-field w-full p-4 rounded-xl resize-none focus:outline-none"
                   />
                   <div className={`text-sm ${expectedOutcome.length >= 20 ? 'text-primary' : 'text-gray-400'}`}>
                     {expectedOutcome.length >= 20 ? '✓ Good context' : `${20 - expectedOutcome.length} more characters needed`}
