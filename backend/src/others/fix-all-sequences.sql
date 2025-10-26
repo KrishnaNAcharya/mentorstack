@@ -13,3 +13,14 @@ SELECT setval(pg_get_serial_sequence('"CommunityMember"', 'id'), COALESCE(MAX(id
 SELECT setval(pg_get_serial_sequence('"ArticleVote"', 'id'), COALESCE(MAX(id), 1)) FROM "ArticleVote";
 SELECT setval(pg_get_serial_sequence('"AnswerVote"', 'id'), COALESCE(MAX(id), 1)) FROM "AnswerVote";
 SELECT setval(pg_get_serial_sequence('"CommunityPostVote"', 'id'), COALESCE(MAX(id), 1)) FROM "CommunityPostVote";
+-- Added additional tables
+SELECT setval(pg_get_serial_sequence('"Connection"', 'id'), COALESCE(MAX(id), 1)) FROM "Connection";
+SELECT setval(pg_get_serial_sequence('"Conversation"', 'id'), COALESCE(MAX(id), 1)) FROM "Conversation";
+SELECT setval(pg_get_serial_sequence('"Message"', 'id'), COALESCE(MAX(id), 1)) FROM "Message";
+SELECT setval(pg_get_serial_sequence('"QuestionBookmark"', 'id'), COALESCE(MAX(id), 1)) FROM "QuestionBookmark";
+SELECT setval(pg_get_serial_sequence('"ArticleBookmark"', 'id'), COALESCE(MAX(id), 1)) FROM "ArticleBookmark";
+SELECT setval(pg_get_serial_sequence('"CommunityPostBookmark"', 'id'), COALESCE(MAX(id), 1)) FROM "CommunityPostBookmark";
+SELECT setval(pg_get_serial_sequence('"ReputationHistory"', 'id'), COALESCE(MAX(id), 1)) FROM "ReputationHistory";
+SELECT setval(pg_get_serial_sequence('"Badge"', 'id'), COALESCE(MAX(id), 1)) FROM "Badge";
+SELECT setval(pg_get_serial_sequence('"UserBadge"', 'id'), COALESCE(MAX(id), 1)) FROM "UserBadge";
+SELECT setval(pg_get_serial_sequence('"AiLog"', 'id'), COALESCE(MAX(id), 1)) FROM "AiLog";

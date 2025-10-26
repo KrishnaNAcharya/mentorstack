@@ -57,6 +57,7 @@ model User {
   communityMemberships   CommunityMember[]
   communityPosts         CommunityPost[]         @relation("PostAuthor")
   communityPostVotes     CommunityPostVote[]
+  communityMessages      CommunityMessage[]
   // Votes
   articleVotes           ArticleVote[]
   // Chat
@@ -123,6 +124,21 @@ model Message {
   sender         User         @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
 
   @@index([conversationId])
+  @@index([senderId])
+}
+
+// Community discussions chat message persistence
+model CommunityMessage {
+  id          Int       @id @default(autoincrement())
+  communityId Int
+  senderId    Int
+  content     String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  sender      User      @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([communityId, createdAt])
   @@index([senderId])
 }
 
@@ -221,6 +237,7 @@ model Community {
   createdBy   User              @relation("CommunityCreator", fields: [createdById], references: [id], onDelete: Cascade)
   members     CommunityMember[]
   posts       CommunityPost[]
+  messages    CommunityMessage[]
 
   @@index([createdById])
 }

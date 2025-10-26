@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Layout from "../../components/Layout";
+import AvatarUpload from "../../components/AvatarUpload";
 import { authAPI, MenteeProfile, MentorProfile } from "@/lib/auth-api";
 
 export default function ProfilePage() {
@@ -12,6 +13,12 @@ export default function ProfilePage() {
   const [userRole, setUserRole] = useState<'mentor' | 'mentee' | 'admin' | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("My Questions");
+  const [bookmarks, setBookmarks] = useState<{
+    questions: Array<{ questionId: number; title: string; createdAt: string }>;
+    articles: Array<{ articleId: number; title: string; createdAt: string }>;
+    posts: Array<{ postId: number; title: string; communityId: number; communityName?: string; createdAt: string }>;
+  } | null>(null);
+  const [bookmarkedSubTab, setBookmarkedSubTab] = useState<'Questions' | 'Articles' | 'Community Posts'>('Questions');
   const [isEditing, setIsEditing] = useState(false);
   const router = useRouter();
 
@@ -43,6 +50,21 @@ export default function ProfilePage() {
 
     loadProfile();
   }, [router]);
+
+  // Load bookmarks when Bookmarked tab becomes active for mentees
+  useEffect(() => {
+    const loadBookmarks = async () => {
+      if (activeTab !== "Bookmarked") return;
+      try {
+        const res = await authAPI.getMyBookmarks();
+        setBookmarks(res);
+      } catch (e) {
+        console.error("Failed to load bookmarks", e);
+        setBookmarks({ questions: [], articles: [], posts: [] });
+      }
+    };
+    loadBookmarks();
+  }, [activeTab]);
 
   const handleSaveProfile = async () => {
     if (!menteeProfile && !mentorProfile) return;
@@ -99,15 +121,29 @@ export default function ProfilePage() {
           {/* Profile Header */}
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 mb-6">
             <div className="flex items-start gap-6">
-              {/* Profile Picture */}
-              <div className="w-24 h-24 bg-gradient-to-br from-emerald-500 to-blue-500 rounded-2xl flex items-center justify-center flex-shrink-0">
-                <span className="text-white text-3xl font-bold">
-                  {profile.name.split(' ').map((n: string) => n[0]).join('')}
-                </span>
-              </div>
+              {/* Profile Picture with Upload */}
+              <AvatarUpload
+                currentAvatarUrl={profile.avatarUrl || null}
+                onUploadSuccess={(newUrl) => {
+                  if (menteeProfile) {
+                    setMenteeProfile({ ...menteeProfile, avatarUrl: newUrl });
+                  } else if (mentorProfile) {
+                    setMentorProfile({ ...mentorProfile, avatarUrl: newUrl });
+                  }
+                }}
+                onDeleteSuccess={() => {
+                  if (menteeProfile) {
+                    setMenteeProfile({ ...menteeProfile, avatarUrl: null });
+                  } else if (mentorProfile) {
+                    setMentorProfile({ ...mentorProfile, avatarUrl: null });
+                  }
+                }}
+                size="xl"
+                editable={true}
+              />
               
               {/* Profile Info */}
-              <div className="flex-1">
+              <div className="flex-1">`
                 <div className="flex items-center gap-4 mb-2">
                   <h1 className="text-3xl font-bold text-slate-800">{profile.name}</h1>
                   <span className="text-slate-500">User{profile.id}</span>
@@ -392,13 +428,84 @@ export default function ProfilePage() {
                     </div>
                   )}
 
-                  {activeTab !== "My Questions" && activeTab !== "Articles" && activeTab !== "Posts" && activeTab !== "Answered" && (
-                    <div className="text-center py-12">
-                      <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <span className="text-2xl">📝</span>
+                  {activeTab === "Bookmarked" && (
+                    <div className="space-y-6">
+                      {/* Sub-tabs navigation */}
+                      <div className="border-b border-slate-200 -mx-6 px-6">
+                        <div className="flex gap-6 overflow-x-auto">
+                          {([
+                            { key: 'Questions', count: bookmarks?.questions.length || 0 },
+                            { key: 'Articles', count: bookmarks?.articles.length || 0 },
+                            { key: 'Community Posts', count: bookmarks?.posts.length || 0 },
+                          ] as Array<{ key: 'Questions' | 'Articles' | 'Community Posts'; count: number }>).map(({ key, count }) => (
+                            <button
+                              key={key}
+                              onClick={() => setBookmarkedSubTab(key)}
+                              className={`py-3 font-medium border-b-2 transition whitespace-nowrap ${
+                                bookmarkedSubTab === key
+                                  ? 'border-emerald-500 text-emerald-600'
+                                  : 'border-transparent text-slate-500 hover:text-slate-700'
+                              }`}
+                              aria-current={bookmarkedSubTab === key ? 'page' : undefined}
+                            >
+                              {key}
+                              <span className="ml-2 text-xs text-slate-400">{count}</span>
+                            </button>
+                          ))}
+                        </div>
                       </div>
-                      <h3 className="text-xl font-semibold text-slate-700 mb-2">No {activeTab.toLowerCase()} yet</h3>
-                      <p className="text-slate-500">This section will show your {activeTab.toLowerCase()}.</p>
+
+                      {/* Sub-tab content */}
+                      {bookmarkedSubTab === 'Questions' && (
+                        <div>
+                          {bookmarks && bookmarks.questions.length > 0 ? (
+                            <div className="space-y-3">
+                              {bookmarks.questions.map((b) => (
+                                <div key={`q-${b.questionId}`} className="border border-slate-200 rounded-lg p-3 hover:bg-slate-50 transition">
+                                  <a className="text-emerald-700 hover:underline font-medium" href={`/questions/${b.questionId}`}>{b.title}</a>
+                                  <div className="text-xs text-slate-500 mt-1">Saved {new Date(b.createdAt).toLocaleDateString()}</div>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="text-slate-500">No bookmarked questions.</div>
+                          )}
+                        </div>
+                      )}
+
+                      {bookmarkedSubTab === 'Articles' && (
+                        <div>
+                          {bookmarks && bookmarks.articles.length > 0 ? (
+                            <div className="space-y-3">
+                              {bookmarks.articles.map((b) => (
+                                <div key={`a-${b.articleId}`} className="border border-slate-200 rounded-lg p-3 hover:bg-slate-50 transition">
+                                  <a className="text-emerald-700 hover:underline font-medium" href={`/article/${b.articleId}`}>{b.title}</a>
+                                  <div className="text-xs text-slate-500 mt-1">Saved {new Date(b.createdAt).toLocaleDateString()}</div>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="text-slate-500">No bookmarked articles.</div>
+                          )}
+                        </div>
+                      )}
+
+                      {bookmarkedSubTab === 'Community Posts' && (
+                        <div>
+                          {bookmarks && bookmarks.posts.length > 0 ? (
+                            <div className="space-y-3">
+                              {bookmarks.posts.map((b) => (
+                                <div key={`p-${b.postId}`} className="border border-slate-200 rounded-lg p-3 hover:bg-slate-50 transition">
+                                  <a className="text-emerald-700 hover:underline font-medium" href={`/community/${b.communityId}/post/${b.postId}`}>{b.title}</a>
+                                  <div className="text-xs text-slate-500 mt-1">Saved {new Date(b.createdAt).toLocaleDateString()}</div>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="text-slate-500">No bookmarked posts.</div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   )}
                 </>

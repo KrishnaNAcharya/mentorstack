@@ -21,6 +21,7 @@ export interface User {
   name: string;
   email: string;
   role: 'mentor' | 'mentee' | 'admin';
+  avatarUrl?: string | null;
 }
 
 export interface AuthResponse {
@@ -38,6 +39,7 @@ export interface MenteeProfile {
   name: string;
   email: string;
   bio: string;
+  avatarUrl?: string | null;
   skills: string[];
   reputation: number;
   joinedDate: string;
@@ -152,6 +154,7 @@ export interface Question {
   description?: string;
   tags: string[];
   createdAt: string;
+  authorId?: number;
   authorName: string;
   authorId?: number;
   answerCount?: number;
@@ -162,6 +165,7 @@ export interface Answer {
   id: number;
   questionId: number;
   content: string;
+  authorId?: number;
   authorName: string;
   authorRole: string;
   createdAt: string;
@@ -176,7 +180,8 @@ export interface Community {
   name: string;
   description: string;
   skills: string[];
-  createdBy: number;
+  createdById: number; // matches schema field name
+  createdBy?: number; // deprecated, for backwards compatibility
   createdAt: string;
   updatedAt: string;
   memberSkills?: string[]; // Real-time skills from members
@@ -195,6 +200,7 @@ export interface CommunityCategory {
 export interface CommunityPost {
   id: number;
   communityId: number;
+  authorId?: number; // for authorization checks
   userRole: string;
   userId: number;
   userName?: string;
@@ -207,6 +213,7 @@ export interface CommunityPost {
   updatedAt: string;
   votes: CommunityPostVote[];
   userVote: 'upvote' | 'downvote' | null;
+  tags?: string[]; // for editing tags
   _count: {
     votes: number;
   };
@@ -246,6 +253,7 @@ export interface Article {
   title: string;
   content: string;
   imageUrls: string[];
+  authorId?: number;
   authorName: string;
   authorBio?: string;
   authorAvatar?: string;
@@ -274,10 +282,12 @@ export interface Tag {
 }
 
 class AuthAPI {
-  private getHeaders(includeAuth = false): HeadersInit {
-    const headers: HeadersInit = {
-      'Content-Type': 'application/json',
-    };
+  private getHeaders(includeAuth = false, includeContentType = true): HeadersInit {
+    const headers: HeadersInit = {};
+
+    if (includeContentType) {
+      headers['Content-Type'] = 'application/json';
+    }
 
     if (includeAuth) {
       const token = localStorage.getItem('authToken');
@@ -287,6 +297,91 @@ class AuthAPI {
     }
 
     return headers;
+  }
+
+  // Bookmarks API
+  async getMyBookmarks(): Promise<{questions: Array<{questionId: number; title: string; createdAt: string}>; articles: Array<{articleId: number; title: string; createdAt: string}>; posts: Array<{postId: number; title: string; communityId: number; communityName?: string; createdAt: string}>;}> {
+    const response = await fetch(`${API_BASE_URL}/bookmarks`, {
+      method: 'GET',
+      headers: this.getHeaders(true),
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to get bookmarks');
+    }
+    return response.json();
+  }
+
+  async addQuestionBookmark(questionId: number): Promise<{ message: string }> {
+    const response = await fetch(`${API_BASE_URL}/bookmarks/questions/${questionId}`, {
+      method: 'POST',
+      headers: this.getHeaders(true),
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to bookmark question');
+    }
+    return response.json();
+  }
+
+  async removeQuestionBookmark(questionId: number): Promise<{ message: string }> {
+    const response = await fetch(`${API_BASE_URL}/bookmarks/questions/${questionId}`, {
+      method: 'DELETE',
+      headers: this.getHeaders(true),
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to remove bookmark');
+    }
+    return response.json();
+  }
+
+  async addArticleBookmark(articleId: number): Promise<{ message: string }> {
+    const response = await fetch(`${API_BASE_URL}/bookmarks/articles/${articleId}`, {
+      method: 'POST',
+      headers: this.getHeaders(true),
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to bookmark article');
+    }
+    return response.json();
+  }
+
+  async removeArticleBookmark(articleId: number): Promise<{ message: string }> {
+    const response = await fetch(`${API_BASE_URL}/bookmarks/articles/${articleId}`, {
+      method: 'DELETE',
+      headers: this.getHeaders(true),
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to remove bookmark');
+    }
+    return response.json();
+  }
+
+  async addCommunityPostBookmark(postId: number): Promise<{ message: string }> {
+    const response = await fetch(`${API_BASE_URL}/bookmarks/community-posts/${postId}`, {
+      method: 'POST',
+      headers: this.getHeaders(true),
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to bookmark post');
+    }
+    return response.json();
+  }
+
+  async removeCommunityPostBookmark(postId: number): Promise<{ message: string }> {
+    const response = await fetch(`${API_BASE_URL}/bookmarks/community-posts/${postId}`, {
+      method: 'DELETE',
+      headers: this.getHeaders(true),
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to remove bookmark');
+    }
+    return response.json();
   }
 
   async signup(data: SignupData): Promise<AuthResponse> {
@@ -363,7 +458,12 @@ class AuthAPI {
   }
 
   getToken(): string | null {
-    return localStorage.getItem('authToken');
+    if (typeof window === 'undefined') return null;
+    try {
+      return localStorage.getItem('authToken');
+    } catch {
+      return null;
+    }
   }
 
   isAuthenticated(): boolean {
@@ -695,6 +795,64 @@ class AuthAPI {
     return response.json();
   }
 
+  async updateQuestion(questionId: number, data: { title: string; body: string; tags: string[] }): Promise<{ message: string; question: Question }> {
+    const response = await fetch(`${API_BASE_URL}/questions/${questionId}`, {
+      method: 'PUT',
+      headers: this.getHeaders(true),
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to update question');
+    }
+
+    return response.json();
+  }
+
+  async deleteQuestion(questionId: number): Promise<{ message: string }> {
+    const response = await fetch(`${API_BASE_URL}/questions/${questionId}`, {
+      method: 'DELETE',
+      headers: this.getHeaders(true),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to delete question');
+    }
+
+    return response.json();
+  }
+
+  async updateAnswer(questionId: number, answerId: number, content: string): Promise<{ message: string; answer: Answer }> {
+    const response = await fetch(`${API_BASE_URL}/questions/${questionId}/answers/${answerId}`, {
+      method: 'PUT',
+      headers: this.getHeaders(true),
+      body: JSON.stringify({ content }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to update answer');
+    }
+
+    return response.json();
+  }
+
+  async deleteAnswer(questionId: number, answerId: number): Promise<{ message: string }> {
+    const response = await fetch(`${API_BASE_URL}/questions/${questionId}/answers/${answerId}`, {
+      method: 'DELETE',
+      headers: this.getHeaders(true),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to delete answer');
+    }
+
+    return response.json();
+  }
+
   // Community methods
   async getCommunities(): Promise<Community[]> {
     const response = await fetch(`${API_BASE_URL}/communities?includeSkills=true`, {
@@ -748,6 +906,35 @@ class AuthAPI {
     if (!response.ok) {
       const error = await response.json();
       throw new Error(error.message || 'Failed to create community');
+    }
+
+    return response.json();
+  }
+
+  async updateCommunity(id: number, data: { name: string; description: string; skills: string[] }): Promise<Community> {
+    const response = await fetch(`${API_BASE_URL}/communities/${id}`, {
+      method: 'PUT',
+      headers: this.getHeaders(true),
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to update community');
+    }
+
+    return response.json();
+  }
+
+  async deleteCommunity(id: number): Promise<{ message: string }> {
+    const response = await fetch(`${API_BASE_URL}/communities/${id}`, {
+      method: 'DELETE',
+      headers: this.getHeaders(true),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to delete community');
     }
 
     return response.json();
@@ -809,16 +996,49 @@ class AuthAPI {
     return response.json();
   }
 
-  async createCommunityPost(communityId: number, data: { title: string; content: string; imageUrls?: string[] }): Promise<CommunityPost> {
+  async createCommunityPost(communityId: number, data: { title: string; content: string; imageUrls?: string[]; tags?: string[] } | FormData): Promise<CommunityPost> {
+    const isFormData = data instanceof FormData;
+    
     const response = await fetch(`${API_BASE_URL}/communities/${communityId}/posts`, {
       method: 'POST',
-      headers: this.getHeaders(true),
-      body: JSON.stringify(data),
+      headers: this.getHeaders(true, !isFormData), // Don't include Content-Type for FormData
+      body: isFormData ? data : JSON.stringify(data),
     });
 
     if (!response.ok) {
       const error = await response.json();
       throw new Error(error.message || 'Failed to create post');
+    }
+
+    return response.json();
+  }
+
+  async updateCommunityPost(communityId: number, postId: number, data: { title: string; content: string; tags?: string[] } | FormData): Promise<CommunityPost> {
+    const isFormData = data instanceof FormData;
+    
+    const response = await fetch(`${API_BASE_URL}/communities/${communityId}/posts/${postId}`, {
+      method: 'PUT',
+      headers: this.getHeaders(true, !isFormData), // Don't include Content-Type for FormData
+      body: isFormData ? data : JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to update post');
+    }
+
+    return response.json();
+  }
+
+  async deleteCommunityPost(communityId: number, postId: number): Promise<{ message: string }> {
+    const response = await fetch(`${API_BASE_URL}/communities/${communityId}/posts/${postId}`, {
+      method: 'DELETE',
+      headers: this.getHeaders(true),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to delete post');
     }
 
     return response.json();
@@ -937,21 +1157,57 @@ class AuthAPI {
     return response.json();
   }
 
+  async updateArticle(articleId: number, formData: FormData): Promise<{ message: string; article: Article }> {
+    const response = await fetch(`${API_BASE_URL}/articles/${articleId}`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${this.getToken()}`,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to update article');
+    }
+
+    return response.json();
+  }
+
+  async deleteArticle(articleId: number): Promise<{ message: string }> {
+    const response = await fetch(`${API_BASE_URL}/articles/${articleId}`, {
+      method: 'DELETE',
+      headers: this.getHeaders(true),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to delete article');
+    }
+
+    return response.json();
+  }
+
   // Tags methods
   async getTagContent(tagName: string): Promise<{
     tagName: string;
     stats: {
       totalArticles: number;
       totalQuestions: number;
+      totalCommunities: number;
       totalContent: number;
     };
     articles: Article[];
     questions: Question[];
-    relatedTags: Array<{
+    communities: Array<{
+      id: number;
       name: string;
-      articleCount: number;
-      questionCount: number;
-      totalCount: number;
+      description: string;
+      skills: string[];
+      creatorName: string;
+      memberCount: number;
+      postCount: number;
+      createdAt: string;
     }>;
   }> {
     const response = await fetch(`${API_BASE_URL}/tags/${encodeURIComponent(tagName)}/content`, {
@@ -971,6 +1227,7 @@ class AuthAPI {
     name: string;
     articleCount: number;
     questionCount: number;
+    communityPostCount: number;
     totalCount: number;
     color: string;
   }>> {

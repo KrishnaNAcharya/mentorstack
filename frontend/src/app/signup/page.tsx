@@ -3,6 +3,8 @@
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { authAPI } from "../../lib/auth-api";
+import Image from "next/image";
+import { Camera, X } from "lucide-react";
 
 type UserRole = "mentor" | "mentee";
 
@@ -15,6 +17,7 @@ interface FormData {
   bio: string;
   location: string;
   skills: string[];
+  avatar: File | null;
   
   // Role will be set from URL params
   role: UserRole | null;
@@ -33,10 +36,12 @@ function SignupForm() {
     bio: "",
     location: "",
     skills: [],
+    avatar: null,
     role: roleParam
   });
   
   const [currentSkill, setCurrentSkill] = useState("");
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [step, setStep] = useState(1);
@@ -65,6 +70,41 @@ function SignupForm() {
       ...prev,
       skills: prev.skills.filter(skill => skill !== skillToRemove)
     }));
+  };
+
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        setErrors(prev => ({ ...prev, avatar: 'Please select an image file' }));
+        return;
+      }
+      // Validate file size (5MB max)
+      if (file.size > 5 * 1024 * 1024) {
+        setErrors(prev => ({ ...prev, avatar: 'Image must be less than 5MB' }));
+        return;
+      }
+      
+      setFormData(prev => ({ ...prev, avatar: file }));
+      
+      // Create preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setAvatarPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+      
+      // Clear error
+      if (errors.avatar) {
+        setErrors(prev => ({ ...prev, avatar: '' }));
+      }
+    }
+  };
+
+  const removeAvatar = () => {
+    setFormData(prev => ({ ...prev, avatar: null }));
+    setAvatarPreview(null);
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -142,6 +182,31 @@ function SignupForm() {
       
       const response = await authAPI.signup(signupData);
       console.log("Signup successful:", response);
+      
+      // Upload avatar if one was selected
+      if (formData.avatar && response.token) {
+        try {
+          const avatarFormData = new FormData();
+          avatarFormData.append('avatar', formData.avatar);
+
+          const avatarResponse = await fetch('http://localhost:5000/api/upload/avatar', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${response.token}`
+            },
+            body: avatarFormData
+          });
+
+          if (!avatarResponse.ok) {
+            console.error('Avatar upload failed, but signup was successful');
+          } else {
+            console.log('Avatar uploaded successfully');
+          }
+        } catch (avatarError) {
+          console.error('Error uploading avatar:', avatarError);
+          // Don't fail the whole signup if avatar upload fails
+        }
+      }
       
       // Redirect to home page on success
       router.push('/home');
@@ -312,6 +377,59 @@ function SignupForm() {
                       }`}
                     />
                     {errors.bio && <p className="text-red-500 text-sm mt-1">{errors.bio}</p>}
+                  </div>
+
+                  {/* Avatar Upload */}
+                  <div>
+                    <label className="block mb-2 font-medium text-slate-700">Profile Picture (Optional)</label>
+                    <div className="flex items-center gap-6">
+                      {/* Avatar Preview */}
+                      <div className="relative">
+                        <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-gray-200 bg-gray-100">
+                          {avatarPreview ? (
+                            <Image
+                              src={avatarPreview}
+                              alt="Avatar preview"
+                              width={96}
+                              height={96}
+                              className="object-cover w-full h-full"
+                            />
+                          ) : (
+                            <div className={`w-full h-full flex items-center justify-center bg-gradient-to-br from-${roleInfo.color}-400 to-${roleInfo.color}-500 text-white text-2xl font-bold`}>
+                              {formData.name.split(' ').map(n => n[0]).join('').toUpperCase() || '?'}
+                            </div>
+                          )}
+                        </div>
+                        {avatarPreview && (
+                          <button
+                            type="button"
+                            onClick={removeAvatar}
+                            title="Remove avatar"
+                            className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white rounded-full p-1.5 shadow-lg transition"
+                          >
+                            <X size={16} />
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Upload Button */}
+                      <div className="flex-1">
+                        <label className={`inline-flex items-center gap-2 px-4 py-3 bg-${roleInfo.color}-500 hover:bg-${roleInfo.color}-600 text-white rounded-lg cursor-pointer transition font-medium`}>
+                          <Camera size={20} />
+                          {avatarPreview ? 'Change Picture' : 'Upload Picture'}
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleAvatarChange}
+                            className="hidden"
+                          />
+                        </label>
+                        <p className="text-xs text-slate-500 mt-2">
+                          JPG, PNG, GIF or WEBP. Max size 5MB.
+                        </p>
+                        {errors.avatar && <p className="text-red-500 text-sm mt-1">{errors.avatar}</p>}
+                      </div>
+                    </div>
                   </div>
 
                   <div>

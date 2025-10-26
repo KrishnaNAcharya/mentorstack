@@ -154,9 +154,16 @@ router.get('/profile/me', authenticateToken, async (req: any, res: any) => {
     }
 
     // Calculate stats
+    // Get bookmarks count across question, article and community post bookmarks
+    const [qbCount, abCount, cbCount] = await Promise.all([
+      prisma.questionBookmark.count({ where: { userId: userId } }),
+      prisma.articleBookmark.count({ where: { userId: userId } }),
+      prisma.communityPostBookmark.count({ where: { userId: userId } }),
+    ]);
+
     const stats = {
       questionsAsked: mentee.questions.length,
-      bookmarksCount: 0, // TODO: Add bookmarks when implemented
+      bookmarksCount: qbCount + abCount + cbCount,
       mentorshipRequestsCount: mentee.menteeRequests.length
     };
 
@@ -207,6 +214,7 @@ router.get('/profile/me', authenticateToken, async (req: any, res: any) => {
       name: mentee.name,
       email: mentee.email,
       bio: mentee.bio,
+      avatarUrl: mentee.avatarUrl,
       skills: mentee.skills,
       jobTitle: mentee.jobTitle,
       department: mentee.department,

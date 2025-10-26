@@ -102,6 +102,40 @@ router.get('/:tagName/content', async (req: any, res: any) => {
       take: limit
     });
 
+    // Get communities with matching skills (case-insensitive search)
+    const allCommunities = await prisma.community.findMany({
+      include: {
+        createdBy: {
+          select: {
+            name: true
+          }
+        },
+        _count: {
+          select: {
+            members: true,
+            posts: true
+          }
+        }
+      }
+    });
+
+    // Filter communities that have the tag in their skills (case-insensitive)
+    const communities = allCommunities
+      .filter(community => 
+        community.skills.some(skill => 
+          skill.toLowerCase() === tagName.toLowerCase()
+        )
+      )
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, limit);
+
+    console.log(`🔍 Searched for communities with skill: "${tagName}"`);
+    console.log(`📊 Total communities in database: ${allCommunities.length}`);
+    console.log(`✨ Communities matching skill: ${communities.length}`);
+    if (communities.length > 0) {
+      console.log(`📝 Matching communities:`, communities.map(c => ({ name: c.name, skills: c.skills })));
+    }
+
     // Get statistics for this tag
     const tagStats = await prisma.tag.findFirst({
       where: {
@@ -114,7 +148,8 @@ router.get('/:tagName/content', async (req: any, res: any) => {
         _count: {
           select: {
             articles: true,
-            questions: true
+            questions: true,
+            communityPosts: true
           }
         }
       }
@@ -142,83 +177,32 @@ router.get('/:tagName/content', async (req: any, res: any) => {
       tags: question.tags.map(t => t.tag.name)
     }));
 
-    // Get related tags
-    const relatedTags = await prisma.tag.findMany({
-      where: {
-        OR: [
-          {
-            articles: {
-              some: {
-                article: {
-                  tags: {
-                    some: {
-                      tag: {
-                        name: {
-                          contains: tagName,
-                          mode: 'insensitive'
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          },
-          {
-            questions: {
-              some: {
-                question: {
-                  tags: {
-                    some: {
-                      tag: {
-                        name: {
-                          contains: tagName,
-                          mode: 'insensitive'
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        ],
-        NOT: {
-          name: {
-            contains: tagName,
-            mode: 'insensitive'
-          }
-        }
-      },
-      include: {
-        _count: {
-          select: {
-            articles: true,
-            questions: true
-          }
-        }
-      },
-      take: 10
-    });
+    // Format communities
+    const formattedCommunities = communities.map(community => ({
+      id: community.id,
+      name: community.name,
+      description: community.description?.substring(0, 200) + (community.description && community.description.length > 200 ? '...' : ''),
+      skills: community.skills,
+      creatorName: community.createdBy?.name,
+      memberCount: community._count.members,
+      postCount: community._count.posts,
+      createdAt: community.createdAt
+    }));
 
     const response = {
       tagName,
       stats: {
         totalArticles: tagStats?._count?.articles || formattedArticles.length,
         totalQuestions: tagStats?._count?.questions || formattedQuestions.length,
-        totalContent: (tagStats?._count?.articles || 0) + (tagStats?._count?.questions || 0)
+        totalCommunities: formattedCommunities.length,
+        totalContent: (tagStats?._count?.articles || 0) + (tagStats?._count?.questions || 0) + formattedCommunities.length
       },
       articles: formattedArticles,
       questions: formattedQuestions,
-      relatedTags: relatedTags.map(tag => ({
-        name: tag.name,
-        articleCount: tag._count.articles,
-        questionCount: tag._count.questions,
-        totalCount: tag._count.articles + tag._count.questions
-      }))
+      communities: formattedCommunities
     };
 
-    console.log(`✅ Found ${formattedArticles.length} articles and ${formattedQuestions.length} questions for tag: ${tagName}`);
+    console.log(`✅ Found ${formattedArticles.length} articles, ${formattedQuestions.length} questions, and ${formattedCommunities.length} communities for tag: ${tagName}`);
     res.json(response);
 
   } catch (error) {
@@ -233,12 +217,14 @@ router.get('/:tagName/content', async (req: any, res: any) => {
 // Get all tags with their content counts
 router.get('/all', async (req: any, res: any) => {
   try {
+    // Get tags from articles and questions
     const tags = await prisma.tag.findMany({
       include: {
         _count: {
           select: {
             articles: true,
-            questions: true
+            questions: true,
+            communityPosts: true
           }
         }
       },
@@ -256,15 +242,70 @@ router.get('/all', async (req: any, res: any) => {
       ]
     });
 
-    const formattedTags = tags.map((tag, index) => ({
-      name: tag.name,
-      articleCount: tag._count.articles,
-      questionCount: tag._count.questions,
-      totalCount: tag._count.articles + tag._count.questions,
-      color: getTagColor(index)
-    }));
+    // Get all communities to extract unique skills
+    const communities = await prisma.community.findMany({
+      select: {
+        skills: true
+      }
+    });
 
-    res.json(formattedTags);
+    // Extract all unique skills from communities
+    const allSkills = new Set<string>();
+    communities.forEach(community => {
+      community.skills.forEach(skill => {
+        allSkills.add(skill.toLowerCase());
+      });
+    });
+
+    // Create a map to count communities per skill
+    const skillCommunityCount = new Map<string, number>();
+    allSkills.forEach(skill => {
+      const count = communities.filter(community =>
+        community.skills.some(s => s.toLowerCase() === skill)
+      ).length;
+      skillCommunityCount.set(skill, count);
+    });
+
+    // Format tags from database (articles and questions)
+    const formattedTags = tags.map((tag, index) => {
+      // Check if this tag is also a skill
+      const communityCount = skillCommunityCount.get(tag.name.toLowerCase()) || 0;
+
+      return {
+        name: tag.name,
+        articleCount: tag._count.articles,
+        questionCount: tag._count.questions,
+        communityPostCount: communityCount,
+        totalCount: tag._count.articles + tag._count.questions + communityCount,
+        color: getTagColor(index)
+      };
+    });
+
+    // Add skills that don't exist as tags yet
+    const tagNames = new Set(tags.map(t => t.name.toLowerCase()));
+    let skillIndex = tags.length;
+    
+    allSkills.forEach(skill => {
+      if (!tagNames.has(skill)) {
+        const communityCount = skillCommunityCount.get(skill) || 0;
+        formattedTags.push({
+          name: skill,
+          articleCount: 0,
+          questionCount: 0,
+          communityPostCount: communityCount,
+          totalCount: communityCount,
+          color: getTagColor(skillIndex++)
+        });
+      }
+    });
+
+    // Filter out tags with zero content
+    const activeTags = formattedTags.filter(tag => tag.totalCount > 0);
+
+    // Sort by total count descending
+    activeTags.sort((a, b) => b.totalCount - a.totalCount);
+
+    res.json(activeTags);
 
   } catch (error) {
     console.error('❌ Error fetching all tags:', error);

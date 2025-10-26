@@ -1,3 +1,4 @@
+require('dotenv').config();
 const { PrismaClient } = require('@prisma/client');
 
 const prisma = new PrismaClient();
@@ -6,39 +7,51 @@ async function resetSequences() {
   try {
     console.log('🔧 Resetting database sequences...');
     
-    // Reset all sequences to match the highest ID in each table
-    await prisma.$executeRaw`SELECT setval(pg_get_serial_sequence('"Community"', 'id'), COALESCE(MAX(id), 1)) FROM "Community"`;
-    console.log('✅ Community sequence reset');
+    // helper to safely reset a table's id sequence, ignoring missing tables
+    const reset = async (table) => {
+      try {
+        await prisma.$executeRawUnsafe(
+          `SELECT setval(pg_get_serial_sequence('"${table}"','id'), COALESCE((SELECT MAX(id) FROM "${table}"), 1))`
+        );
+        console.log(`✅ ${table} sequence reset`);
+      } catch (e) {
+        console.warn(`⚠️  Skipped ${table} (missing or no sequence):`, e?.code || e?.message || e);
+      }
+    };
+
+    // Core tables
+    await reset('Community');
+    await reset('CommunityMember');
+    await reset('CommunityPost');
+    await reset('CommunityPostVote');
+    await reset('Question');
+    await reset('Answer');
+    // No QuestionVote table in schema – skip safely
+    await reset('AnswerVote');
+    await reset('Article');
+    await reset('ArticleVote');
+
+    // Messaging/Connections
+    await reset('Connection');
+    await reset('Conversation');
+    await reset('Message');
+
+    // Bookmarks
+    await reset('QuestionBookmark');
+    await reset('ArticleBookmark');
+    await reset('CommunityPostBookmark');
+
+  // Community discussions
+  await reset('CommunityMessage');
+
+    // Reputation/Badges/Logs
+    await reset('ReputationHistory');
+    await reset('Badge');
+    await reset('UserBadge');
+    await reset('AiLog');
     
-    await prisma.$executeRaw`SELECT setval(pg_get_serial_sequence('"CommunityMember"', 'id'), COALESCE(MAX(id), 1)) FROM "CommunityMember"`;
-    console.log('✅ CommunityMember sequence reset');
-    
-    await prisma.$executeRaw`SELECT setval(pg_get_serial_sequence('"CommunityPost"', 'id'), COALESCE(MAX(id), 1)) FROM "CommunityPost"`;
-    console.log('✅ CommunityPost sequence reset');
-    
-    await prisma.$executeRaw`SELECT setval(pg_get_serial_sequence('"CommunityPostVote"', 'id'), COALESCE(MAX(id), 1)) FROM "CommunityPostVote"`;
-    console.log('✅ CommunityPostVote sequence reset');
-    
-    await prisma.$executeRaw`SELECT setval(pg_get_serial_sequence('"Question"', 'id'), COALESCE(MAX(id), 1)) FROM "Question"`;
-    console.log('✅ Question sequence reset');
-    
-    await prisma.$executeRaw`SELECT setval(pg_get_serial_sequence('"Answer"', 'id'), COALESCE(MAX(id), 1)) FROM "Answer"`;
-    console.log('✅ Answer sequence reset');
-    
-    await prisma.$executeRaw`SELECT setval(pg_get_serial_sequence('"QuestionVote"', 'id'), COALESCE(MAX(id), 1)) FROM "QuestionVote"`;
-    console.log('✅ QuestionVote sequence reset');
-    
-    await prisma.$executeRaw`SELECT setval(pg_get_serial_sequence('"AnswerVote"', 'id'), COALESCE(MAX(id), 1)) FROM "AnswerVote"`;
-    console.log('✅ AnswerVote sequence reset');
-    
-    await prisma.$executeRaw`SELECT setval(pg_get_serial_sequence('"Article"', 'id'), COALESCE(MAX(id), 1)) FROM "Article"`;
-    console.log('✅ Article sequence reset');
-    
-    await prisma.$executeRaw`SELECT setval(pg_get_serial_sequence('"ArticleVote"', 'id'), COALESCE(MAX(id), 1)) FROM "ArticleVote"`;
-    console.log('✅ ArticleVote sequence reset');
-    
-    console.log('🎉 All database sequences reset successfully!');
-    console.log('🚀 Community creation and voting should now work properly');
+    console.log('🎉 All database sequences reset (best-effort).');
+    console.log('🚀 Inserts should now work properly across all core tables');
   } catch (error) {
     console.error('❌ Error resetting sequences:', error.message);
   } finally {

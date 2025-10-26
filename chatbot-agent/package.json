@@ -4,18 +4,14 @@
   "type": "module",
   "main": "agent.js",
   "scripts": {
-  "dev": "node -r dotenv/config agent.js dotenv_config_path=.env",
-  "start": "node -r dotenv/config agent.js dotenv_config_path=.env",
-  "generate": "prisma generate --schema ./prisma/schema.prisma",
-    "postinstall": "npm run generate"
+    "dev": "node -r dotenv/config agent.js dotenv_config_path=.env",
+    "start": "node -r dotenv/config agent.js dotenv_config_path=.env"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
     "amqplib": "^0.10.4",
     "dotenv": "^16.5.0",
-    "@prisma/client": "^6.15.0"
+    "axios": "^1.7.7"
   },
-  "devDependencies": {
-    "prisma": "^6.15.0"
-  }
+  "devDependencies": {}
 }

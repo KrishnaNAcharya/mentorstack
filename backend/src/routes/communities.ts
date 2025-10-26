@@ -1,9 +1,14 @@
 import express, { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import multer from 'multer';
 import { prisma } from '../../lib/prisma';
 import { Role } from '@prisma/client';
+import { postImageStorage, deleteImage, extractPublicId } from '../../lib/cloudinary';
 
 const router = express.Router();
+
+// Configure multer to use Cloudinary storage for post images
+const upload = multer({ storage: postImageStorage });
 
 // Extend Request type to include user
 interface AuthenticatedRequest extends Request {
@@ -247,7 +252,7 @@ router.post('/', authenticateToken, async (req: any, res: any) => {
         name,
         description: description || '',
         skills: skills || [],
-        createdBy: userId
+        createdById: userId
       }
     });
 
@@ -264,6 +269,90 @@ router.post('/', authenticateToken, async (req: any, res: any) => {
   } catch (error) {
     console.error('Error creating community:', error);
     res.status(500).json({ error: 'Failed to create community' });
+  }
+});
+
+// Update a community (only creator can update)
+router.put('/:id', authenticateToken, async (req: any, res: any) => {
+  try {
+    const { id } = req.params;
+    const { name, description, skills } = req.body;
+    const { userId } = req.user;
+
+    if (!name || !name.trim()) {
+      return res.status(400).json({ error: 'Community name is required' });
+    }
+
+    // Check if community exists
+    const community = await prisma.community.findUnique({
+      where: { id: parseInt(id) }
+    });
+
+    if (!community) {
+      return res.status(404).json({ error: 'Community not found' });
+    }
+
+    // Check if user is the creator
+    if (community.createdById !== userId) {
+      return res.status(403).json({ error: 'Only the community creator can update this community' });
+    }
+
+    // If name is being changed, check if new name already exists
+    if (name !== community.name) {
+      const existingCommunity = await prisma.community.findUnique({
+        where: { name }
+      });
+
+      if (existingCommunity) {
+        return res.status(400).json({ error: 'Community name already exists' });
+      }
+    }
+
+    const updatedCommunity = await prisma.community.update({
+      where: { id: parseInt(id) },
+      data: {
+        name: name.trim(),
+        description: description?.trim() || '',
+        skills: skills || []
+      }
+    });
+
+    res.json(updatedCommunity);
+  } catch (error) {
+    console.error('Error updating community:', error);
+    res.status(500).json({ error: 'Failed to update community' });
+  }
+});
+
+// Delete a community (only creator can delete)
+router.delete('/:id', authenticateToken, async (req: any, res: any) => {
+  try {
+    const { id } = req.params;
+    const { userId } = req.user;
+
+    // Check if community exists
+    const community = await prisma.community.findUnique({
+      where: { id: parseInt(id) }
+    });
+
+    if (!community) {
+      return res.status(404).json({ error: 'Community not found' });
+    }
+
+    // Check if user is the creator
+    if (community.createdById !== userId) {
+      return res.status(403).json({ error: 'Only the community creator can delete this community' });
+    }
+
+    // Delete the community (cascade will handle members, posts, etc.)
+    await prisma.community.delete({
+      where: { id: parseInt(id) }
+    });
+
+    res.json({ message: 'Community deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting community:', error);
+    res.status(500).json({ error: 'Failed to delete community' });
   }
 });
 
@@ -342,13 +431,15 @@ router.delete('/:id/leave', authenticateToken, async (req: any, res: any) => {
 });
 
 // Create a post in a community
-router.post('/:id/posts', authenticateToken, async (req: any, res: any) => {
+router.post('/:id/posts', authenticateToken, upload.array('images', 5), async (req: any, res: any) => {
   try {
     const { id } = req.params;
-    const { title, content, imageUrls } = req.body;
+    const { title, content, tags } = req.body;
     const { userId, role } = req.user;
 
-    if (!title || !content) {
+    console.log('Create post request body:', { title, content, tags, hasFiles: !!req.files });
+
+    if (!title || !title.trim() || !content || !content.trim()) {
       return res.status(400).json({ error: 'Title and content are required' });
     }
 
@@ -365,6 +456,14 @@ router.post('/:id/posts', authenticateToken, async (req: any, res: any) => {
       return res.status(403).json({ error: 'Must be a member to post in this community' });
     }
 
+    // Handle uploaded images from Cloudinary
+    const imageUrls: string[] = [];
+    if (req.files && Array.isArray(req.files)) {
+      for (const file of req.files) {
+        imageUrls.push(file.path); // file.path contains the Cloudinary URL
+      }
+    }
+
     const post = await prisma.communityPost.create({
       data: {
         communityId: parseInt(id),
@@ -372,9 +471,47 @@ router.post('/:id/posts', authenticateToken, async (req: any, res: any) => {
         authorRole: role as Role,
         title,
         content,
-        imageUrls: imageUrls || []
+        imageUrls: imageUrls
       }
     });
+
+    // Handle tags if provided
+    let parsedTags: string[] = [];
+    if (tags) {
+      try {
+        parsedTags = typeof tags === 'string' ? JSON.parse(tags) : tags;
+      } catch (error) {
+        console.error('Error parsing tags:', error);
+        parsedTags = Array.isArray(tags) ? tags : [];
+      }
+    }
+
+    if (parsedTags.length > 0) {
+      for (const tagName of parsedTags) {
+        if (typeof tagName === 'string' && tagName.trim()) {
+          const trimmedTagName = tagName.trim().toLowerCase();
+          
+          // Find or create the tag
+          let tag = await prisma.tag.findUnique({
+            where: { name: trimmedTagName }
+          });
+
+          if (!tag) {
+            tag = await prisma.tag.create({
+              data: { name: trimmedTagName }
+            });
+          }
+
+          // Link the tag to the community post
+          await prisma.communityPostTag.create({
+            data: {
+              postId: post.id,
+              tagId: tag.id
+            }
+          });
+        }
+      }
+    }
 
     res.status(201).json(post);
   } catch (error) {
@@ -410,6 +547,11 @@ router.get('/:id/posts', async (req: any, res: any) => {
       where: { communityId: parseInt(id) },
       include: {
         votes: true,
+        tags: {
+          include: {
+            tag: true
+          }
+        },
         _count: {
           select: {
             votes: true
@@ -457,7 +599,8 @@ router.get('/:id/posts', async (req: any, res: any) => {
 
       return {
         ...post,
-        userVote
+        userVote,
+        tags: post.tags.map((pt: any) => pt.tag.name)
       };
     });
 
@@ -465,6 +608,205 @@ router.get('/:id/posts', async (req: any, res: any) => {
   } catch (error) {
     console.error('Error fetching posts:', error);
     res.status(500).json({ error: 'Failed to fetch posts' });
+  }
+});
+
+// Update a community post (only author can update)
+router.put('/:communityId/posts/:postId', authenticateToken, upload.array('images', 5), async (req: any, res: any) => {
+  try {
+    const { communityId, postId } = req.params;
+    const { title, content, tags, existingImageUrls } = req.body;
+    const { userId } = req.user;
+
+    console.log('Update post request:', { 
+      communityId, 
+      postId, 
+      title, 
+      content, 
+      tags: typeof tags, 
+      existingImageUrls: typeof existingImageUrls,
+      hasFiles: !!req.files 
+    });
+
+    if (!title || !title.trim() || !content || !content.trim()) {
+      console.log('Validation failed - title or content missing');
+      return res.status(400).json({ error: 'Title and content are required' });
+    }
+
+    // Check if post exists
+    const post = await prisma.communityPost.findUnique({
+      where: { id: parseInt(postId) },
+      include: { tags: true }
+    });
+
+    if (!post) {
+      return res.status(404).json({ error: 'Post not found' });
+    }
+
+    // Check if post belongs to the community
+    if (post.communityId !== parseInt(communityId)) {
+      return res.status(400).json({ error: 'Post does not belong to this community' });
+    }
+
+    // Check if user is the author
+    if (post.authorId !== userId) {
+      return res.status(403).json({ error: 'Only the post author can update this post' });
+    }
+
+    // Handle image updates
+    let finalImageUrls: string[] = [];
+    
+    // Parse existing image URLs from the request
+    let parsedExistingUrls: string[] = [];
+    if (existingImageUrls) {
+      try {
+        parsedExistingUrls = typeof existingImageUrls === 'string' ? JSON.parse(existingImageUrls) : existingImageUrls;
+      } catch (error) {
+        console.error('Error parsing existingImageUrls:', error);
+      }
+    }
+    
+    // Add existing images that were kept
+    finalImageUrls = [...parsedExistingUrls];
+    
+    // Find images to delete (images in post.imageUrls but not in parsedExistingUrls)
+    const currentImageUrls = post.imageUrls || [];
+    const imagesToDelete = currentImageUrls.filter(url => !parsedExistingUrls.includes(url));
+    
+    // Delete removed images from Cloudinary
+    for (const imageUrl of imagesToDelete) {
+      try {
+        const publicId = extractPublicId(imageUrl);
+        if (publicId) {
+          await deleteImage(publicId);
+          console.log('Deleted image from Cloudinary:', publicId);
+        }
+      } catch (error) {
+        console.error('Error deleting image from Cloudinary:', error);
+      }
+    }
+    
+    // Add newly uploaded images from Cloudinary
+    if (req.files && Array.isArray(req.files)) {
+      for (const file of req.files) {
+        finalImageUrls.push(file.path); // file.path contains the Cloudinary URL
+      }
+    }
+
+    // Update the post
+    const updatedPost = await prisma.communityPost.update({
+      where: { id: parseInt(postId) },
+      data: {
+        title: title.trim(),
+        content: content.trim(),
+        imageUrls: finalImageUrls
+      }
+    });
+
+    // Handle tags update if provided
+    let parsedTags: string[] = [];
+    if (tags !== undefined) {
+      try {
+        parsedTags = typeof tags === 'string' ? JSON.parse(tags) : tags;
+      } catch (error) {
+        console.error('Error parsing tags:', error);
+        parsedTags = Array.isArray(tags) ? tags : [];
+      }
+      
+      // Delete existing tags
+      await prisma.communityPostTag.deleteMany({
+        where: { postId: parseInt(postId) }
+      });
+
+      // Add new tags
+      if (parsedTags.length > 0) {
+        for (const tagName of parsedTags) {
+          if (typeof tagName === 'string' && tagName.trim()) {
+            const trimmedTagName = tagName.trim().toLowerCase();
+            
+            // Find or create the tag
+            let tag = await prisma.tag.findUnique({
+              where: { name: trimmedTagName }
+            });
+
+            if (!tag) {
+              tag = await prisma.tag.create({
+                data: { name: trimmedTagName }
+              });
+            }
+
+            // Link the tag to the community post
+            await prisma.communityPostTag.create({
+              data: {
+                postId: parseInt(postId),
+                tagId: tag.id
+              }
+            });
+          }
+        }
+      }
+    }
+
+    res.json(updatedPost);
+  } catch (error) {
+    console.error('Error updating post:', error);
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+    res.status(500).json({ 
+      error: 'Failed to update post',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Delete a community post (only author can delete)
+router.delete('/:communityId/posts/:postId', authenticateToken, async (req: any, res: any) => {
+  try {
+    const { communityId, postId } = req.params;
+    const { userId } = req.user;
+
+    // Check if post exists
+    const post = await prisma.communityPost.findUnique({
+      where: { id: parseInt(postId) }
+    });
+
+    if (!post) {
+      return res.status(404).json({ error: 'Post not found' });
+    }
+
+    // Check if post belongs to the community
+    if (post.communityId !== parseInt(communityId)) {
+      return res.status(400).json({ error: 'Post does not belong to this community' });
+    }
+
+    // Check if user is the author
+    if (post.authorId !== userId) {
+      return res.status(403).json({ error: 'Only the post author can delete this post' });
+    }
+
+    // Delete images from Cloudinary before deleting the post
+    if (post.imageUrls && post.imageUrls.length > 0) {
+      for (const imageUrl of post.imageUrls) {
+        try {
+          const publicId = extractPublicId(imageUrl);
+          if (publicId) {
+            await deleteImage(publicId);
+          }
+        } catch (error) {
+          console.error('Error deleting image from Cloudinary:', error);
+          // Continue with deletion even if image cleanup fails
+        }
+      }
+    }
+
+    // Delete the post (cascade will handle votes, tags, bookmarks)
+    await prisma.communityPost.delete({
+      where: { id: parseInt(postId) }
+    });
+
+    res.json({ message: 'Post deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting post:', error);
+    res.status(500).json({ error: 'Failed to delete post' });
   }
 });
 

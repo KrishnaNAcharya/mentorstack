@@ -14,24 +14,32 @@ import {
   User,
   MessageSquare,
   ExternalLink,
-  Hash
+  Hash,
+  UsersRound
 } from 'lucide-react';
+
+interface Community {
+  id: number;
+  name: string;
+  description: string;
+  skills: string[];
+  creatorName: string;
+  memberCount: number;
+  postCount: number;
+  createdAt: string;
+}
 
 interface TagContentData {
   tagName: string;
   stats: {
     totalArticles: number;
     totalQuestions: number;
+    totalCommunities: number;
     totalContent: number;
   };
   articles: Article[];
   questions: Question[];
-  relatedTags: Array<{
-    name: string;
-    articleCount: number;
-    questionCount: number;
-    totalCount: number;
-  }>;
+  communities: Community[];
 }
 
 export default function TagDetailPage() {
@@ -42,7 +50,7 @@ export default function TagDetailPage() {
   const [data, setData] = useState<TagContentData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'all' | 'articles' | 'questions'>('all');
+  const [activeTab, setActiveTab] = useState<'all' | 'articles' | 'questions' | 'communities'>('all');
 
   useEffect(() => {
     const loadTagContent = async () => {
@@ -51,6 +59,8 @@ export default function TagDetailPage() {
       try {
         setLoading(true);
         const tagData = await authAPI.getTagContent(decodeURIComponent(tagName));
+        console.log('📦 Received tag data:', tagData);
+        console.log('🏘️ Communities:', tagData.communities);
         setData(tagData);
         setError(null);
       } catch (error) {
@@ -69,15 +79,17 @@ export default function TagDetailPage() {
   };
 
   const getTabContent = () => {
-    if (!data) return { articles: [], questions: [] };
+    if (!data) return { articles: [], questions: [], communities: [] };
     
     switch (activeTab) {
       case 'articles':
-        return { articles: data.articles, questions: [] };
+        return { articles: data.articles, questions: [], communities: [] };
       case 'questions':
-        return { articles: [], questions: data.questions };
+        return { articles: [], questions: data.questions, communities: [] };
+      case 'communities':
+        return { articles: [], questions: [], communities: data.communities };
       default:
-        return { articles: data.articles, questions: data.questions };
+        return { articles: data.articles, questions: data.questions, communities: data.communities };
     }
   };
 
@@ -122,7 +134,7 @@ export default function TagDetailPage() {
 
   if (!data) return null;
 
-  const { articles, questions } = getTabContent();
+  const { articles, questions, communities } = getTabContent();
 
   return (
     <Layout>
@@ -151,13 +163,13 @@ export default function TagDetailPage() {
                   {data.tagName}
                 </h1>
                 <p className="text-lg text-slate-600 mt-1">
-                  {data.stats.totalContent} pieces of content • {data.stats.totalArticles} articles • {data.stats.totalQuestions} questions
+                  {data.stats.totalContent} pieces of content • {data.stats.totalArticles} articles • {data.stats.totalQuestions} questions • {data.stats.totalCommunities} communities
                 </p>
               </div>
             </div>
 
             {/* Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
               <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl p-6 text-white">
                 <div className="flex items-center gap-3 mb-2">
                   <BookOpen className="w-6 h-6" />
@@ -175,10 +187,19 @@ export default function TagDetailPage() {
                 <div className="text-3xl font-bold">{data.stats.totalQuestions}</div>
                 <div className="text-emerald-100 text-sm mt-1">Community discussions</div>
               </div>
+
+              <div className="bg-gradient-to-r from-orange-500 to-orange-600 rounded-xl p-6 text-white">
+                <div className="flex items-center gap-3 mb-2">
+                  <Users className="w-6 h-6" />
+                  <span className="font-medium">Communities</span>
+                </div>
+                <div className="text-3xl font-bold">{data.stats.totalCommunities}</div>
+                <div className="text-orange-100 text-sm mt-1">Active groups</div>
+              </div>
               
               <div className="bg-gradient-to-r from-purple-500 to-purple-600 rounded-xl p-6 text-white">
                 <div className="flex items-center gap-3 mb-2">
-                  <Users className="w-6 h-6" />
+                  <Hash className="w-6 h-6" />
                   <span className="font-medium">Total Content</span>
                 </div>
                 <div className="text-3xl font-bold">{data.stats.totalContent}</div>
@@ -197,11 +218,12 @@ export default function TagDetailPage() {
                 {[
                   { id: 'all', label: 'All Content', count: data.stats.totalContent },
                   { id: 'articles', label: 'Articles', count: data.stats.totalArticles },
-                  { id: 'questions', label: 'Questions', count: data.stats.totalQuestions }
+                  { id: 'questions', label: 'Questions', count: data.stats.totalQuestions },
+                  { id: 'communities', label: 'Communities', count: data.stats.totalCommunities }
                 ].map((tab) => (
                   <button
                     key={tab.id}
-                    onClick={() => setActiveTab(tab.id as 'all' | 'articles' | 'questions')}
+                    onClick={() => setActiveTab(tab.id as 'all' | 'articles' | 'questions' | 'communities')}
                     className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
                       activeTab === tab.id
                         ? 'border-emerald-500 text-emerald-600'
@@ -216,7 +238,7 @@ export default function TagDetailPage() {
 
             {/* Tab Content */}
             <div className="p-6">
-              {(articles.length === 0 && questions.length === 0) ? (
+              {(articles.length === 0 && questions.length === 0 && communities.length === 0) ? (
                 <div className="text-center py-12">
                   <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
                     <span className="text-2xl">📝</span>
@@ -368,31 +390,77 @@ export default function TagDetailPage() {
                       </div>
                     </div>
                   )}
+
+                  {/* Communities Section */}
+                  {communities.length > 0 && (
+                    <div>
+                      {activeTab === 'all' && (articles.length > 0 || questions.length > 0) && (
+                        <hr className="my-8 border-slate-200" />
+                      )}
+                      {activeTab === 'all' && (
+                        <h3 className="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
+                          <Users className="w-5 h-5 text-orange-500" />
+                          Communities ({communities.length})
+                        </h3>
+                      )}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {communities.map((community) => (
+                          <Link
+                            key={`community-${community.id}`}
+                            href={`/community/${community.id}`}
+                            className="block bg-slate-50 rounded-lg p-6 hover:bg-slate-100 transition-colors group"
+                          >
+                            <div className="flex items-start justify-between mb-3">
+                              <h4 className="text-xl font-semibold text-slate-800 group-hover:text-emerald-600 transition-colors">
+                                {community.name}
+                              </h4>
+                              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800 flex-shrink-0 ml-2">
+                                Community
+                              </span>
+                            </div>
+                            <p className="text-slate-600 mb-4 line-clamp-2">
+                              {community.description}
+                            </p>
+                            <div className="flex items-center gap-4 text-sm text-slate-500 mb-3">
+                              <span className="flex items-center gap-1">
+                                <User className="w-4 h-4" />
+                                {community.creatorName}
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <Users className="w-4 h-4" />
+                                {community.memberCount} members
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <MessageCircle className="w-4 h-4" />
+                                {community.postCount} posts
+                              </span>
+                            </div>
+                            {community.skills && community.skills.length > 0 && (
+                              <div className="flex gap-2 flex-wrap">
+                                {community.skills.slice(0, 4).map((skill) => (
+                                  <span
+                                    key={skill}
+                                    className="px-2 py-1 text-xs font-medium bg-orange-100 text-orange-800 rounded-full"
+                                  >
+                                    {skill}
+                                  </span>
+                                ))}
+                                {community.skills.length > 4 && (
+                                  <span className="px-2 py-1 text-xs font-medium bg-slate-100 text-slate-600 rounded-full">
+                                    +{community.skills.length - 4} more
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
           </div>
-
-          {/* Related Tags Section */}
-          {data.relatedTags && data.relatedTags.length > 0 && (
-            <div className="mt-8 bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-              <h3 className="text-lg font-semibold text-slate-800 mb-4">Related Tags</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {data.relatedTags.map((tag) => (
-                  <Link
-                    key={tag.name}
-                    href={`/tags/${encodeURIComponent(tag.name)}`}
-                    className="block p-4 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors"
-                  >
-                    <h4 className="font-medium text-slate-800 mb-1">{tag.name}</h4>
-                    <p className="text-sm text-slate-500">
-                      {tag.totalCount} items • {tag.articleCount} articles • {tag.questionCount} questions
-                    </p>
-                  </Link>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
       </div>
     </Layout>

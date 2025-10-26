@@ -13,6 +13,7 @@ export default function ArticlesPage() {
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [userVotes, setUserVotes] = useState<Record<number, 'upvote' | 'downvote' | null>>({});
+  const [searchQuery, setSearchQuery] = useState('');
   
   const searchParams = useSearchParams();
 
@@ -76,10 +77,21 @@ export default function ArticlesPage() {
   };
 
   const filteredArticles = articles.filter(article => {
-    if (selectedCategory === 'All') return true;
-    return article.tags && article.tags.some(tag => 
-      tag.toLowerCase().includes(selectedCategory.toLowerCase())
+    // Filter by category
+    const categoryMatch = selectedCategory === 'All' || (
+      article.tags && article.tags.some(tag => 
+        tag.toLowerCase().includes(selectedCategory.toLowerCase())
+      )
     );
+    
+    // Filter by search query
+    const searchMatch = searchQuery === '' || (
+      article.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      article.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      article.authorName.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+    
+    return categoryMatch && searchMatch;
   });
 
   const getCategoryFromTitle = (title: string) => {
@@ -90,8 +102,13 @@ export default function ArticlesPage() {
     return 'Web Development';
   };
 
-  const getArticleImage = (articleId: number) => {
-    // Generate different placeholder images for variety
+  const getArticleImage = (article: APIArticle) => {
+    // Use Cloudinary image if it exists
+    if (article.imageUrls && article.imageUrls.length > 0) {
+      return article.imageUrls[0];
+    }
+    
+    // Fallback to placeholder images for variety
     const images = [
       'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80', // Programming
       'https://images.unsplash.com/photo-1555949963-aa79dcee981c?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80', // Code
@@ -99,7 +116,7 @@ export default function ArticlesPage() {
       'https://images.unsplash.com/photo-1551288049-bebda4e38f71?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80', // Charts
       'https://images.unsplash.com/photo-1563013544-824ae1b704d3?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80', // Web design
     ];
-    return images[articleId % images.length];
+    return images[article.id % images.length];
   };
 
   if (loading) {
@@ -122,6 +139,24 @@ export default function ArticlesPage() {
               ➕ Create a Post
             </button>
           </Link>
+        </div>
+
+        {/* Search Bar */}
+        <div className="mb-6">
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+              <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+            <input
+              type="text"
+              placeholder="Search articles by title, content, or author..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="block w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+            />
+          </div>
         </div>
 
         {/* Category Filter */}
@@ -230,7 +265,7 @@ export default function ArticlesPage() {
                 {/* Image */}
                 <div className="w-48 h-40 bg-gradient-to-br from-blue-400 to-purple-500 flex-shrink-0">
                   <Image 
-                    src={getArticleImage(article.id)}
+                    src={getArticleImage(article)}
                     alt={article.title}
                     width={192}
                     height={160}

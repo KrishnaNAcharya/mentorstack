@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Layout from '@/components/Layout';
-import { authAPI, Question } from '@/lib/auth-api';
+import { authAPI, Question, Answer } from '@/lib/auth-api';
 import SpellingChecker from '@/components/SpellingChecker';
 import {
   Bold,
@@ -25,7 +25,12 @@ import {
   AlertCircle,
   XCircle,
   Target,
+  Edit,
+  Trash2,
+  Save,
+  XCircle,
 } from "lucide-react";
+import BookmarkButton from "@/components/BookmarkButton";
 
 export default function QuestionDetailPage() {
   const params = useParams();
@@ -43,6 +48,15 @@ export default function QuestionDetailPage() {
   const [userVotes, setUserVotes] = useState<{ [answerId: number]: 'upvote' | 'downvote' | null }>({});
   const editorRef = useRef<HTMLTextAreaElement>(null);
   const codeEditorRef = useRef<HTMLTextAreaElement>(null);
+
+  // Edit states
+  const [isEditingQuestion, setIsEditingQuestion] = useState(false);
+  const [editQuestionTitle, setEditQuestionTitle] = useState("");
+  const [editQuestionBody, setEditQuestionBody] = useState("");
+  const [editQuestionTags, setEditQuestionTags] = useState<string[]>([]);
+  const [editingAnswerId, setEditingAnswerId] = useState<number | null>(null);
+  const [editAnswerContent, setEditAnswerContent] = useState("");
+  const [currentUserId, setCurrentUserId] = useState<number | null>(null);
 
   // Current user state
   const [currentUser, setCurrentUser] = useState<any>(null);
@@ -66,7 +80,7 @@ export default function QuestionDetailPage() {
         const userData = await authAPI.getCurrentUser();
         setCurrentUser(userData.user);
 
-        const questionData = await authAPI.getQuestion(questionId);
+  const questionData = await authAPI.getQuestion(questionId);
         setQuestion(questionData);
         
         // Track user votes for each answer
@@ -75,6 +89,14 @@ export default function QuestionDetailPage() {
           votes[answer.id] = answer.userVote || null;
         });
         setUserVotes(votes);
+
+        // Get current user ID
+        try {
+          const userResponse = await authAPI.getCurrentUser();
+          setCurrentUserId(userResponse.user.id);
+        } catch (error) {
+          console.error('Error getting current user:', error);
+        }
       } catch (error) {
         console.error('Error loading question:', error);
         router.push('/questions');
@@ -102,7 +124,7 @@ export default function QuestionDetailPage() {
       const data = await res.json();
       setSummary(data.summary);
       setShowSummary(true);
-    } catch (err) {
+    } catch {
       setSummary("Error generating summary.");
       setShowSummary(true);
     } finally {
@@ -405,6 +427,98 @@ export default function QuestionDetailPage() {
     }
   };
 
+  const handleEditQuestion = () => {
+    if (!question) return;
+    setEditQuestionTitle(question.title);
+    setEditQuestionBody(question.description || "");
+    setEditQuestionTags(question.tags);
+    setIsEditingQuestion(true);
+  };
+
+  const handleSaveQuestion = async () => {
+    if (editQuestionTitle.trim().length < 10 || editQuestionBody.trim().length < 20) return;
+
+    setIsSubmitting(true);
+    try {
+      await authAPI.updateQuestion(questionId, {
+        title: editQuestionTitle.trim(),
+        body: editQuestionBody.trim(),
+        tags: editQuestionTags
+      });
+      
+      // Reload question to show updates
+      const questionData = await authAPI.getQuestion(questionId);
+      setQuestion(questionData);
+      setIsEditingQuestion(false);
+    } catch (error) {
+      console.error('Error updating question:', error);
+      alert('Failed to update question. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDeleteQuestion = async () => {
+    if (!confirm('Are you sure you want to delete this question? This action cannot be undone.')) {
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await authAPI.deleteQuestion(questionId);
+      router.push('/questions');
+    } catch (error) {
+      console.error('Error deleting question:', error);
+      alert('Failed to delete question. Please try again.');
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleEditAnswer = (answer: Answer) => {
+    setEditingAnswerId(answer.id);
+    setEditAnswerContent(answer.content);
+  };
+
+  const handleSaveAnswer = async () => {
+    if (!editingAnswerId || editAnswerContent.trim().length < 20) return;
+
+    setIsSubmitting(true);
+    try {
+      await authAPI.updateAnswer(questionId, editingAnswerId, editAnswerContent.trim());
+      
+      // Reload question to show updates
+      const questionData = await authAPI.getQuestion(questionId);
+      setQuestion(questionData);
+      setEditingAnswerId(null);
+      setEditAnswerContent("");
+    } catch (error) {
+      console.error('Error updating answer:', error);
+      alert('Failed to update answer. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDeleteAnswer = async (answerId: number) => {
+    if (!confirm('Are you sure you want to delete this answer? This action cannot be undone.')) {
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await authAPI.deleteAnswer(questionId, answerId);
+      
+      // Reload question to remove deleted answer
+      const questionData = await authAPI.getQuestion(questionId);
+      setQuestion(questionData);
+    } catch (error) {
+      console.error('Error deleting answer:', error);
+      alert('Failed to delete answer. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const canSubmit = answerContent.trim().length >= 20;
 
   const goBackToQuestions = () => {
@@ -455,16 +569,86 @@ export default function QuestionDetailPage() {
               <div className="flex-1">
                 {/* Question Header */}
                 <div className="mb-6">
-                  <h1 className="text-3xl font-bold text-gray-900 mb-3">{question.title}</h1>
-                  <div className="flex items-center gap-4 text-sm text-gray-500">
-                    <span>Asked by {question.authorName}</span>
-                    <span>•</span>
-                    <span>{new Date(question.createdAt).toLocaleDateString()}</span>
+                  <div className="flex items-start justify-between gap-4">
+                    {isEditingQuestion ? (
+                      <div className="flex-1 space-y-4">
+                        <input
+                          type="text"
+                          value={editQuestionTitle}
+                          onChange={(e) => setEditQuestionTitle(e.target.value)}
+                          className="w-full text-3xl font-bold text-gray-900 border-b-2 border-blue-500 focus:outline-none"
+                          placeholder="Question title"
+                        />
+                        <textarea
+                          value={editQuestionBody}
+                          onChange={(e) => setEditQuestionBody(e.target.value)}
+                          className="w-full p-4 border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-blue-500"
+                          rows={8}
+                          placeholder="Question details"
+                        />
+                        <div className="flex gap-2">
+                          <button
+                            onClick={handleSaveQuestion}
+                            disabled={isSubmitting || editQuestionTitle.trim().length < 10 || editQuestionBody.trim().length < 20}
+                            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
+                          >
+                            <Save size={18} />
+                            Save Changes
+                          </button>
+                          <button
+                            onClick={() => setIsEditingQuestion(false)}
+                            disabled={isSubmitting}
+                            className="flex items-center gap-2 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+                          >
+                            <XCircle size={18} />
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <h1 className="text-3xl font-bold text-gray-900 mb-3 flex-1">{question.title}</h1>
+                        <div className="flex items-center gap-2">
+                          {/* Bookmark */}
+                          {Number.isFinite(question?.id) && (
+                            <div className="mt-1">
+                              <BookmarkButton kind="question" id={question.id} onChange={() => {}} />
+                            </div>
+                          )}
+                          {/* Edit/Delete buttons for question author */}
+                          {currentUserId && question.authorId === currentUserId && (
+                            <div className="flex gap-2">
+                              <button
+                                onClick={handleEditQuestion}
+                                className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                title="Edit question"
+                              >
+                                <Edit size={20} />
+                              </button>
+                              <button
+                                onClick={handleDeleteQuestion}
+                                className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                title="Delete question"
+                              >
+                                <Trash2 size={20} />
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </>
+                    )}
                   </div>
+                  {!isEditingQuestion && (
+                    <div className="flex items-center gap-4 text-sm text-gray-500">
+                      <span>Asked by {question.authorName}</span>
+                      <span>•</span>
+                      <span>{new Date(question.createdAt).toLocaleDateString()}</span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Question Body */}
-                {question.description && (
+                {!isEditingQuestion && question.description && (
                   <div className="prose prose-gray max-w-none mb-6">
                     <div className="text-gray-700 leading-relaxed whitespace-pre-wrap text-lg">
                       {question.description}
@@ -473,16 +657,18 @@ export default function QuestionDetailPage() {
                 )}
 
                 {/* Tags */}
-                <div className="flex gap-2 mb-6">
-                  {question.tags.map((tag) => (
-                    <span
-                      key={tag}
-                      className="px-3 py-1 text-sm font-medium bg-blue-100 text-blue-800 rounded-full"
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                </div>
+                {!isEditingQuestion && (
+                  <div className="flex gap-2 mb-6">
+                    {question.tags.map((tag) => (
+                      <span
+                        key={tag}
+                        className="px-3 py-1 text-sm font-medium bg-blue-100 text-blue-800 rounded-full"
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -538,85 +724,138 @@ export default function QuestionDetailPage() {
                 <div className="space-y-6">
                   {question.answers.map((answer) => (
                     <div key={answer.id} className="bg-gray-50 p-6 rounded-lg">
-                      <div className="flex items-start gap-4">
-                        {/* Vote Buttons */}
-                        <div className="flex flex-col items-center gap-2">
-                          <button
-                            onClick={async () => {
-                              try {
-                                const currentVote = userVotes[answer.id];
-                                await authAPI.voteOnAnswer(questionId, answer.id, 'upvote');
-                                
-                                // Update user votes state
-                                setUserVotes(prev => ({
-                                  ...prev,
-                                  [answer.id]: currentVote === 'upvote' ? null : 'upvote'
-                                }));
-                                
-                                // Reload question to update vote counts
-                                const questionData = await authAPI.getQuestion(questionId);
-                                setQuestion(questionData);
-                              } catch (error) {
-                                console.error('Error voting:', error);
-                              }
-                            }}
-                            className={`p-2 rounded-lg transition-colors ${
-                              userVotes[answer.id] === 'upvote'
-                                ? 'bg-green-200 text-green-700'
-                                : 'hover:bg-green-100 text-gray-500'
-                            }`}
-                            title="Upvote this answer"
-                          >
-                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-                            </svg>
-                          </button>
-                          <span className="text-lg font-bold text-gray-700">
-                            {(answer.upvotes || 0) - (answer.downvotes || 0)}
-                          </span>
-                          <button
-                            onClick={async () => {
-                              try {
-                                const currentVote = userVotes[answer.id];
-                                await authAPI.voteOnAnswer(questionId, answer.id, 'downvote');
-                                
-                                // Update user votes state
-                                setUserVotes(prev => ({
-                                  ...prev,
-                                  [answer.id]: currentVote === 'downvote' ? null : 'downvote'
-                                }));
-                                
-                                // Reload question to update vote counts
-                                const questionData = await authAPI.getQuestion(questionId);
-                                setQuestion(questionData);
-                              } catch (error) {
-                                console.error('Error voting:', error);
-                              }
-                            }}
-                            className={`p-2 rounded-lg transition-colors ${
-                              userVotes[answer.id] === 'downvote'
-                                ? 'bg-red-200 text-red-700'
-                                : 'hover:bg-red-100 text-gray-500'
-                            }`}
-                            title="Downvote this answer"
-                          >
-                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                            </svg>
-                          </button>
-                        </div>
-
-                        {/* Answer Content */}
-                        <div className="flex-1">
-                          <div className="mb-4">
-                            <div className="text-sm text-gray-500 mb-2">
-                              Answered by {answer.authorName} on {new Date(answer.createdAt).toLocaleDateString()}
-                            </div>
-                            <div className="text-gray-700 leading-relaxed whitespace-pre-wrap">
-                              {answer.content}
-                            </div>
+                      {editingAnswerId === answer.id ? (
+                        <div className="space-y-4">
+                          <textarea
+                            value={editAnswerContent}
+                            onChange={(e) => setEditAnswerContent(e.target.value)}
+                            className="w-full p-4 border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-blue-500"
+                            rows={8}
+                            placeholder="Edit your answer"
+                          />
+                          <div className="flex gap-2">
+                            <button
+                              onClick={handleSaveAnswer}
+                              disabled={isSubmitting || editAnswerContent.trim().length < 20}
+                              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
+                            >
+                              <Save size={18} />
+                              Save Changes
+                            </button>
+                            <button
+                              onClick={() => {
+                                setEditingAnswerId(null);
+                                setEditAnswerContent("");
+                              }}
+                              disabled={isSubmitting}
+                              className="flex items-center gap-2 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+                            >
+                              <XCircle size={18} />
+                              Cancel
+                            </button>
                           </div>
-                          
+                        </div>
+                      ) : (
+                        <div className="flex items-start gap-4">
+                          {/* Vote Buttons */}
+                          <div className="flex flex-col items-center gap-2">
+                            <button
+                              onClick={async () => {
+                                try {
+                                  const currentVote = userVotes[answer.id];
+                                  await authAPI.voteOnAnswer(questionId, answer.id, 'upvote');
+                                  
+                                  // Update user votes state
+                                  setUserVotes(prev => ({
+                                    ...prev,
+                                    [answer.id]: currentVote === 'upvote' ? null : 'upvote'
+                                  }));
+                                  
+                                  // Reload question to update vote counts
+                                  const questionData = await authAPI.getQuestion(questionId);
+                                  setQuestion(questionData);
+                                } catch (error) {
+                                  console.error('Error voting:', error);
+                                }
+                              }}
+                              className={`p-2 rounded-lg transition-colors ${
+                                userVotes[answer.id] === 'upvote'
+                                  ? 'bg-green-200 text-green-700'
+                                  : 'hover:bg-green-100 text-gray-500'
+                              }`}
+                              title="Upvote this answer"
+                            >
+                              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                              </svg>
+                            </button>
+                            <span className="text-lg font-bold text-gray-700">
+                              {(answer.upvotes || 0) - (answer.downvotes || 0)}
+                            </span>
+                            <button
+                              onClick={async () => {
+                                try {
+                                  const currentVote = userVotes[answer.id];
+                                  await authAPI.voteOnAnswer(questionId, answer.id, 'downvote');
+                                  
+                                  // Update user votes state
+                                  setUserVotes(prev => ({
+                                    ...prev,
+                                    [answer.id]: currentVote === 'downvote' ? null : 'downvote'
+                                  }));
+                                  
+                                  // Reload question to update vote counts
+                                  const questionData = await authAPI.getQuestion(questionId);
+                                  setQuestion(questionData);
+                                } catch (error) {
+                                  console.error('Error voting:', error);
+                                }
+                              }}
+                              className={`p-2 rounded-lg transition-colors ${
+                                userVotes[answer.id] === 'downvote'
+                                  ? 'bg-red-200 text-red-700'
+                                  : 'hover:bg-red-100 text-gray-500'
+                              }`}
+                              title="Downvote this answer"
+                            >
+                              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                              </svg>
+                            </button>
+                          </div>
+
+                          {/* Answer Content */}
+                          <div className="flex-1">
+                            <div className="mb-4">
+                              <div className="flex items-center justify-between mb-2">
+                                <div className="text-sm text-gray-500">
+                                  Answered by {answer.authorName} on {new Date(answer.createdAt).toLocaleDateString()}
+                                </div>
+                                {/* Edit/Delete buttons for answer author */}
+                                {currentUserId && answer.authorId === currentUserId && (
+                                  <div className="flex gap-2">
+                                    <button
+                                      onClick={() => handleEditAnswer(answer)}
+                                      className="p-1 text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                                      title="Edit answer"
+                                    >
+                                      <Edit size={16} />
+                                    </button>
+                                    <button
+                                      onClick={() => handleDeleteAnswer(answer.id)}
+                                      className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors"
+                                      title="Delete answer"
+                                    >
+                                      <Trash2 size={16} />
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                              <div className="text-gray-700 leading-relaxed whitespace-pre-wrap">
+                                {answer.content}
+                              </div>
+                            </div>
+                            
                           {/* Validate Answer Button - Only for Question Author */}
                           {currentUser && question && currentUser.id === question.authorId && (
                             <div className="mt-4 pt-4 border-t border-gray-200">
@@ -643,7 +882,8 @@ export default function QuestionDetailPage() {
                           </div>
                           )}
                         </div>
-                      </div>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>

@@ -1,37 +1,14 @@
 import express from 'express';
 import jwt from 'jsonwebtoken';
-import multer, { FileFilterCallback } from 'multer';
-import path from 'path';
-import { Request } from 'express';
+import multer from 'multer';
 import { prisma } from '../../lib/prisma';
 import { Role } from '@prisma/client';
+import { articleImageStorage, deleteImage, extractPublicId } from '../../lib/cloudinary';
 
 const router = express.Router();
 
-// Configure multer for file uploads
-const storage = multer.diskStorage({
-  destination: (req: Request, file: Express.Multer.File, cb: (error: Error | null, destination: string) => void) => {
-    cb(null, 'uploads/articles/'); // Make sure this directory exists
-  },
-  filename: (req: Request, file: Express.Multer.File, cb: (error: Error | null, filename: string) => void) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
-  }
-});
-
-const upload = multer({ 
-  storage: storage,
-  limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB limit
-  },
-  fileFilter: (req: Request, file: Express.Multer.File, cb: FileFilterCallback) => {
-    if (file.mimetype.startsWith('image/')) {
-      cb(null, true);
-    } else {
-      cb(new Error('Only image files are allowed!'));
-    }
-  }
-});
+// Configure multer to use Cloudinary storage for article images
+const upload = multer({ storage: articleImageStorage });
 
 // Middleware to verify JWT token
 const authenticateToken = (req: any, res: any, next: any) => {
@@ -117,6 +94,7 @@ router.get('/', async (req: any, res: any) => {
         title: article.title,
         content: article.content,
         imageUrls: article.imageUrls,
+        authorId: article.authorId,
         authorName: article.author.name,
         authorBio: article.author.bio,
         authorAvatar: article.author.avatarUrl,
@@ -174,35 +152,13 @@ router.get('/tags/popular', async (req: any, res: any) => {
       'bg-teal-100', 'bg-orange-100'
     ];
 
-    const popularTags = tagsWithCounts.map((tag, index) => ({
-      name: tag.name,
-      count: tag._count.articles,
-      color: colors[index % colors.length]
-    }));
-
-    // If we don't have enough tags, add some default ones
-    if (popularTags.length < 10) {
-      const defaultTags = [
-        { name: 'Web Development', count: 45, color: 'bg-blue-100' },
-        { name: 'AI', count: 32, color: 'bg-purple-100' },
-        { name: 'Cybersecurity', count: 28, color: 'bg-green-100' },
-        { name: 'IoT', count: 25, color: 'bg-yellow-100' },
-        { name: 'Frontend', count: 22, color: 'bg-pink-100' },
-        { name: 'Backend', count: 20, color: 'bg-indigo-100' },
-        { name: 'NLP', count: 18, color: 'bg-gray-100' },
-        { name: 'Machine Learning', count: 15, color: 'bg-red-100' },
-        { name: 'DevOps', count: 12, color: 'bg-teal-100' },
-        { name: 'Mobile Development', count: 10, color: 'bg-orange-100' }
-      ];
-
-      // Add default tags that aren't already in our database
-      const existingTagNames = popularTags.map(t => t.name.toLowerCase());
-      const missingTags = defaultTags.filter(t => 
-        !existingTagNames.includes(t.name.toLowerCase())
-      );
-
-      popularTags.push(...missingTags.slice(0, 10 - popularTags.length));
-    }
+    const popularTags = tagsWithCounts
+      .filter(tag => tag._count.articles > 0) // Only tags with articles
+      .map((tag, index) => ({
+        name: tag.name,
+        count: tag._count.articles,
+        color: colors[index % colors.length]
+      }));
 
     res.json(popularTags);
   } catch (error) {
@@ -242,7 +198,12 @@ router.get('/:id', async (req: any, res: any) => {
             avatarUrl: true
           }
         },
-        votes: true
+        votes: true,
+        tags: {
+          include: {
+            tag: true
+          }
+        }
       }
     });
 
@@ -265,12 +226,14 @@ router.get('/:id', async (req: any, res: any) => {
       title: article.title,
       content: article.content,
       imageUrls: article.imageUrls,
+      authorId: article.authorId,
       authorName: article.author.name,
       authorBio: article.author.bio,
       authorAvatar: article.author.avatarUrl,
       upvotes,
       downvotes,
       userVote,
+      tags: article.tags.map(at => at.tag.name),
       createdAt: article.createdAt,
       updatedAt: article.updatedAt
     };
@@ -293,14 +256,12 @@ router.post('/', authenticateToken, upload.array('images', 5), async (req: any, 
       return res.status(400).json({ message: 'Title and content are required' });
     }
 
-    // Handle uploaded images
+    // Handle uploaded images from Cloudinary
     const imageUrls: string[] = [];
     if (req.files && Array.isArray(req.files)) {
       for (const file of req.files) {
-        // In production, you'd upload to cloud storage and get URLs
-        // For now, we'll create local URLs
-        const imageUrl = `/uploads/articles/${file.filename}`;
-        imageUrls.push(imageUrl);
+        // Cloudinary automatically uploads and provides the URL
+        imageUrls.push(file.path); // file.path contains the Cloudinary URL
       }
     }
 
@@ -444,6 +405,233 @@ router.post('/:id/vote', authenticateToken, async (req: any, res: any) => {
   } catch (error) {
     console.error('Error voting on article:', error);
     res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Update an article (only by author)
+router.put('/:id', authenticateToken, upload.array('images', 5), async (req: any, res: any) => {
+  try {
+    const articleId = parseInt(req.params.id);
+    const { title, content, tags, existingImageUrls } = req.body;
+    const userId = req.user.userId;
+
+    // Validation - relaxed for editing
+    if (!title || title.trim().length < 1) {
+      return res.status(400).json({ message: 'Title is required' });
+    }
+
+    if (!content || content.trim().length < 1) {
+      return res.status(400).json({ message: 'Content is required' });
+    }
+
+    // Check if article exists and user is the author
+    const article = await prisma.article.findUnique({
+      where: { id: articleId }
+    });
+
+    if (!article) {
+      return res.status(404).json({ message: 'Article not found' });
+    }
+
+    if (article.authorId !== userId) {
+      return res.status(403).json({ message: 'You can only edit your own articles' });
+    }
+
+    // Handle image URLs
+    let imageUrls: string[] = [];
+    
+    // Parse existing image URLs if provided (these are Cloudinary URLs to keep)
+    if (existingImageUrls) {
+      try {
+        imageUrls = typeof existingImageUrls === 'string' 
+          ? JSON.parse(existingImageUrls) 
+          : existingImageUrls;
+      } catch (error) {
+        console.error('Error parsing existing image URLs:', error);
+        imageUrls = [];
+      }
+    }
+
+    // Delete old images that were removed (compare article.imageUrls with existingImageUrls)
+    if (article.imageUrls && Array.isArray(article.imageUrls)) {
+      const removedImages = article.imageUrls.filter((url: string) => !imageUrls.includes(url));
+      for (const imageUrl of removedImages) {
+        try {
+          const publicId = extractPublicId(imageUrl);
+          if (publicId) {
+            await deleteImage(publicId);
+            console.log(`Deleted removed image: ${publicId}`);
+          }
+        } catch (error) {
+          console.error('Error deleting old image:', error);
+        }
+      }
+    }
+
+    // Add newly uploaded images (Cloudinary URLs)
+    if (req.files && Array.isArray(req.files)) {
+      for (const file of req.files) {
+        // Cloudinary multer returns the secure_url in file.path
+        const imageUrl = (file as any).path;
+        imageUrls.push(imageUrl);
+      }
+    }
+
+    // Update the article
+    const updatedArticle = await prisma.article.update({
+      where: { id: articleId },
+      data: {
+        title: title.trim(),
+        content: content.trim(),
+        imageUrls: imageUrls
+      },
+      include: {
+        author: {
+          select: {
+            name: true,
+            bio: true,
+            avatarUrl: true
+          }
+        }
+      }
+    });
+
+    // Update tags if provided
+    if (tags) {
+      let parsedTags: string[] = [];
+      try {
+        parsedTags = typeof tags === 'string' ? JSON.parse(tags) : tags;
+      } catch (error) {
+        console.error('Error parsing tags:', error);
+        parsedTags = [];
+      }
+
+      if (parsedTags.length > 0) {
+        // Remove existing tags
+        await prisma.articleTag.deleteMany({
+          where: { articleId }
+        });
+
+        // Add new tags
+        for (const tagName of parsedTags) {
+          try {
+            let tag = await prisma.tag.findUnique({
+              where: { name: tagName.toLowerCase().trim() }
+            });
+
+            if (!tag) {
+              tag = await prisma.tag.create({
+                data: { name: tagName.toLowerCase().trim() }
+              });
+            }
+
+            await prisma.articleTag.create({
+              data: {
+                articleId: articleId,
+                tagId: tag.id
+              }
+            });
+          } catch (error) {
+            console.error(`Error creating/linking tag ${tagName}:`, error);
+          }
+        }
+      }
+    }
+
+    // Fetch complete article with tags
+    const completeArticle = await prisma.article.findUnique({
+      where: { id: articleId },
+      include: {
+        author: {
+          select: {
+            name: true,
+            bio: true,
+            avatarUrl: true
+          }
+        },
+        tags: {
+          include: {
+            tag: {
+              select: {
+                name: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    res.json({
+      message: 'Article updated successfully',
+      article: {
+        id: completeArticle!.id,
+        title: completeArticle!.title,
+        content: completeArticle!.content,
+        imageUrls: completeArticle!.imageUrls,
+        authorName: completeArticle!.author.name,
+        authorBio: completeArticle!.author.bio,
+        authorAvatar: completeArticle!.author.avatarUrl,
+        tags: completeArticle!.tags.map(at => at.tag.name),
+        updatedAt: completeArticle!.updatedAt
+      }
+    });
+
+  } catch (error) {
+    console.error('Error updating article:', error);
+    res.status(500).json({ 
+      message: 'Server error',
+      details: process.env.NODE_ENV === 'development' ? (error as any)?.message : undefined
+    });
+  }
+});
+
+// Delete an article (only by author)
+router.delete('/:id', authenticateToken, async (req: any, res: any) => {
+  try {
+    const articleId = parseInt(req.params.id);
+    const userId = req.user.userId;
+
+    // Check if article exists and user is the author
+    const article = await prisma.article.findUnique({
+      where: { id: articleId }
+    });
+
+    if (!article) {
+      return res.status(404).json({ message: 'Article not found' });
+    }
+
+    if (article.authorId !== userId) {
+      return res.status(403).json({ message: 'You can only delete your own articles' });
+    }
+
+    // Delete images from Cloudinary before deleting the article
+    if (article.imageUrls && article.imageUrls.length > 0) {
+      for (const imageUrl of article.imageUrls) {
+        try {
+          const publicId = extractPublicId(imageUrl);
+          if (publicId) {
+            await deleteImage(publicId);
+          }
+        } catch (error) {
+          console.error('Error deleting image from Cloudinary:', error);
+          // Continue with deletion even if image cleanup fails
+        }
+      }
+    }
+
+    // Delete the article (cascade will handle related records)
+    await prisma.article.delete({
+      where: { id: articleId }
+    });
+
+    res.json({ message: 'Article deleted successfully' });
+
+  } catch (error) {
+    console.error('Error deleting article:', error);
+    res.status(500).json({ 
+      message: 'Server error',
+      details: process.env.NODE_ENV === 'development' ? (error as any)?.message : undefined
+    });
   }
 });
 

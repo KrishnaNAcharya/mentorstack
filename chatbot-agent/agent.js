@@ -1,15 +1,16 @@
 import 'dotenv/config';
 import amqp from 'amqplib';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { PrismaClient } from '@prisma/client';
+import axios from 'axios';
 
 const RABBITMQ_URL = process.env.RABBITMQ_URL || 'amqp://localhost';
 const DIRECT_EXCHANGE = process.env.DIRECT_EXCHANGE || 'direct-exchange';
 const USER_QUESTIONS_QUEUE = process.env.USER_QUESTIONS_QUEUE || 'user-questions-queue';
 const AI_QUESTION_ROUTING_KEY = process.env.AI_QUESTION_ROUTING_KEY || 'ai-question';
 
-const prisma = new PrismaClient();
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:5000';
+const AGENT_TOKEN = process.env.AGENT_TOKEN || '';
 
 async function ensureTopology(ch) {
   await ch.assertExchange(DIRECT_EXCHANGE, 'direct', { durable: true });
@@ -29,10 +30,19 @@ async function handleQuestion(ch, msg) {
     const response = await result.response;
     const answer = response.text();
 
-    // Log to DB
-    await prisma.aiLog.create({
-      data: { menteeId: userId, prompt: question, response: answer }
-    });
+    // Log to DB via backend API (decoupled from Prisma)
+    try {
+      await axios.post(`${BACKEND_URL}/api/ai/log`, { userId, prompt: question, response: answer }, {
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Agent-Token': AGENT_TOKEN,
+        },
+        timeout: 5000,
+      });
+    } catch (logErr) {
+      console.error('Failed to log AI interaction to backend', logErr?.response?.data || logErr?.message || logErr);
+      // continue; logging failure should not prevent user reply
+    }
 
     // Publish reply
     const routingKey = `bot-reply.${userId}`;

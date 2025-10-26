@@ -58,7 +58,7 @@ const Sidebar = ({
       { name: "Profile", href: "/profile" },
       { name: "Tags", href: "/tags" },
       { name: "Articles", href: "/articles" },
-      { name: "Bookmarks", href: "#" },
+      { name: "Bookmarks", href: "/bookmarks" },
       { name: "Contact", href: "/contact" },
       { name: "Help", href: "#" }
     );

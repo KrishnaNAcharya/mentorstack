@@ -5,7 +5,9 @@ const nextConfig: NextConfig = {
     domains: [
       'images.unsplash.com',
       'via.placeholder.com',
-      'localhost'
+      'localhost',
+      'res.cloudinary.com',
+      'picsum.photos'
     ],
   },
 };

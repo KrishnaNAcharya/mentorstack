@@ -140,6 +140,7 @@ router.get('/:id', async (req: any, res: any) => {
       description: question.body,
       tags: question.tags.map((qt: any) => qt.tag.name),
       createdAt: question.createdAt,
+      authorId: question.author.id,
       authorName: question.author.name,
       authorId: question.author.id,
       authorRole: question.author.role,
@@ -159,6 +160,7 @@ router.get('/:id', async (req: any, res: any) => {
           id: answer.id,
           content: answer.body,
           createdAt: answer.createdAt,
+          authorId: answer.author.id,
           authorName: answer.author.name,
           authorRole: answer.author.role,
           upvotes,
@@ -416,6 +418,265 @@ router.post('/:questionId/answers/:answerId/vote', authenticateToken, async (req
 
   } catch (error: any) {
     console.error('Error voting on answer:', error);
+    res.status(500).json({ 
+      message: 'Server error',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+// Update a question (only by author)
+router.put('/:id', authenticateToken, async (req: any, res: any) => {
+  try {
+    const questionId = parseInt(req.params.id);
+    const { title, body, tags } = req.body;
+    const userId = req.user.userId;
+
+    // Validation
+    if (!title || title.trim().length < 10) {
+      return res.status(400).json({ message: 'Title must be at least 10 characters long' });
+    }
+
+    if (!body || body.trim().length < 20) {
+      return res.status(400).json({ message: 'Question body must be at least 20 characters long' });
+    }
+
+    // Check if question exists and user is the author
+    const question = await prisma.question.findUnique({
+      where: { id: questionId }
+    });
+
+    if (!question) {
+      return res.status(404).json({ message: 'Question not found' });
+    }
+
+    if (question.authorId !== userId) {
+      return res.status(403).json({ message: 'You can only edit your own questions' });
+    }
+
+    // Update the question
+    const updatedQuestion = await prisma.question.update({
+      where: { id: questionId },
+      data: {
+        title: title.trim(),
+        body: body.trim()
+      }
+    });
+
+    // Update tags if provided
+    if (tags && Array.isArray(tags)) {
+      // Remove existing tags
+      await prisma.questionTag.deleteMany({
+        where: { questionId }
+      });
+
+      // Add new tags
+      for (const tagName of tags) {
+        if (typeof tagName === 'string' && tagName.trim()) {
+          const trimmedTagName = tagName.trim().toLowerCase();
+          
+          let tag = await prisma.tag.findUnique({
+            where: { name: trimmedTagName }
+          });
+
+          if (!tag) {
+            tag = await prisma.tag.create({
+              data: { name: trimmedTagName }
+            });
+          }
+
+          await prisma.questionTag.create({
+            data: {
+              questionId: questionId,
+              tagId: tag.id
+            }
+          });
+        }
+      }
+    }
+
+    // Fetch the complete updated question
+    const completeQuestion = await prisma.question.findUnique({
+      where: { id: questionId },
+      include: {
+        author: {
+          select: {
+            name: true,
+            role: true
+          }
+        },
+        tags: {
+          include: {
+            tag: {
+              select: {
+                name: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    res.json({
+      message: 'Question updated successfully',
+      question: {
+        id: completeQuestion!.id,
+        title: completeQuestion!.title,
+        description: completeQuestion!.body,
+        tags: completeQuestion!.tags.map(qt => qt.tag.name),
+        updatedAt: completeQuestion!.updatedAt,
+        authorName: completeQuestion!.author.name
+      }
+    });
+
+  } catch (error: any) {
+    console.error('Error updating question:', error);
+    res.status(500).json({ 
+      message: 'Server error',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+// Delete a question (only by author)
+router.delete('/:id', authenticateToken, async (req: any, res: any) => {
+  try {
+    const questionId = parseInt(req.params.id);
+    const userId = req.user.userId;
+
+    // Check if question exists and user is the author
+    const question = await prisma.question.findUnique({
+      where: { id: questionId }
+    });
+
+    if (!question) {
+      return res.status(404).json({ message: 'Question not found' });
+    }
+
+    if (question.authorId !== userId) {
+      return res.status(403).json({ message: 'You can only delete your own questions' });
+    }
+
+    // Delete the question (cascade will handle related records)
+    await prisma.question.delete({
+      where: { id: questionId }
+    });
+
+    res.json({ message: 'Question deleted successfully' });
+
+  } catch (error: any) {
+    console.error('Error deleting question:', error);
+    res.status(500).json({ 
+      message: 'Server error',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+// Update an answer (only by author)
+router.put('/:questionId/answers/:answerId', authenticateToken, async (req: any, res: any) => {
+  try {
+    const questionId = parseInt(req.params.questionId);
+    const answerId = parseInt(req.params.answerId);
+    const { content } = req.body;
+    const userId = req.user.userId;
+
+    if (!content || content.trim().length < 20) {
+      return res.status(400).json({ message: 'Answer must be at least 20 characters long' });
+    }
+
+    // Check if answer exists and belongs to the question
+    const answer = await prisma.answer.findFirst({
+      where: {
+        id: answerId,
+        questionId: questionId
+      }
+    });
+
+    if (!answer) {
+      return res.status(404).json({ message: 'Answer not found' });
+    }
+
+    if (answer.authorId !== userId) {
+      return res.status(403).json({ message: 'You can only edit your own answers' });
+    }
+
+    // Update the answer
+    const updatedAnswer = await prisma.answer.update({
+      where: { id: answerId },
+      data: {
+        body: content.trim()
+      },
+      include: {
+        author: {
+          select: {
+            name: true,
+            role: true,
+            avatarUrl: true
+          }
+        },
+        AnswerVote: true
+      }
+    });
+
+    const upvotes = updatedAnswer.AnswerVote.filter((v: any) => v.voteType === 'upvote').length;
+    const downvotes = updatedAnswer.AnswerVote.filter((v: any) => v.voteType === 'downvote').length;
+
+    res.json({
+      message: 'Answer updated successfully',
+      answer: {
+        id: updatedAnswer.id,
+        content: updatedAnswer.body,
+        authorName: updatedAnswer.author.name,
+        authorRole: updatedAnswer.author.role,
+        updatedAt: updatedAnswer.updatedAt,
+        upvotes,
+        downvotes,
+        voteScore: upvotes - downvotes
+      }
+    });
+
+  } catch (error: any) {
+    console.error('Error updating answer:', error);
+    res.status(500).json({ 
+      message: 'Server error',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+// Delete an answer (only by author)
+router.delete('/:questionId/answers/:answerId', authenticateToken, async (req: any, res: any) => {
+  try {
+    const questionId = parseInt(req.params.questionId);
+    const answerId = parseInt(req.params.answerId);
+    const userId = req.user.userId;
+
+    // Check if answer exists and belongs to the question
+    const answer = await prisma.answer.findFirst({
+      where: {
+        id: answerId,
+        questionId: questionId
+      }
+    });
+
+    if (!answer) {
+      return res.status(404).json({ message: 'Answer not found' });
+    }
+
+    if (answer.authorId !== userId) {
+      return res.status(403).json({ message: 'You can only delete your own answers' });
+    }
+
+    // Delete the answer (cascade will handle votes)
+    await prisma.answer.delete({
+      where: { id: answerId }
+    });
+
+    res.json({ message: 'Answer deleted successfully' });
+
+  } catch (error: any) {
+    console.error('Error deleting answer:', error);
     res.status(500).json({ 
       message: 'Server error',
       details: process.env.NODE_ENV === 'development' ? error.message : undefined

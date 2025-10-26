@@ -2,12 +2,21 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { authAPI, Tag } from "../../lib/auth-api";
+import { authAPI } from "../../lib/auth-api";
 import Layout from "../../components/Layout";
+
+interface TagData {
+  name: string;
+  articleCount: number;
+  questionCount: number;
+  communityCount: number;
+  count: number;
+  color: string;
+}
 
 export default function Tags() {
   const router = useRouter();
-  const [tags, setTags] = useState<Tag[]>([]);
+  const [tags, setTags] = useState<TagData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
@@ -20,9 +29,12 @@ export default function Tags() {
     try {
       setLoading(true);
       const allTags = await authAPI.getAllTags();
-      // Map the new format to the existing Tag interface
+      // Map the API response to TagData format
       const mappedTags = allTags.map(tag => ({
         name: tag.name,
+        articleCount: tag.articleCount,
+        questionCount: tag.questionCount,
+        communityCount: tag.communityPostCount, // Backend still uses communityPostCount for now
         count: tag.totalCount,
         color: tag.color
       }));
@@ -133,9 +145,20 @@ export default function Tags() {
                     <h3 className="font-semibold text-slate-800 mb-2 group-hover:text-emerald-700 transition-colors">
                       {tag.name}
                     </h3>
-                    <p className="text-sm text-slate-600">
+                    <p className="text-sm text-slate-600 mb-1">
                       {tag.count} {tag.count === 1 ? 'item' : 'items'}
                     </p>
+                    <div className="text-xs text-slate-500 space-y-0.5">
+                      {tag.questionCount > 0 && (
+                        <div>{tag.questionCount} question{tag.questionCount !== 1 ? 's' : ''}</div>
+                      )}
+                      {tag.articleCount > 0 && (
+                        <div>{tag.articleCount} article{tag.articleCount !== 1 ? 's' : ''}</div>
+                      )}
+                      {tag.communityCount > 0 && (
+                        <div>{tag.communityCount} communit{tag.communityCount !== 1 ? 'ies' : 'y'}</div>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}

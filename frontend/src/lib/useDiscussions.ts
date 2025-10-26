@@ -8,7 +8,8 @@ export type DiscussionMessage = {
   content?: string;
   senderId?: number;
   senderRole?: string;
-  timestamp: string;
+  senderName?: string;
+  timestamp?: string;
   message?: string; // for system messages
 };
 
@@ -31,7 +32,32 @@ export function useDiscussions() {
     ws.onmessage = (ev) => {
       try {
         const data = JSON.parse(ev.data);
-        setMessages((prev) => [...prev, data]);
+        if (data?.type === 'community.history' && Array.isArray(data?.messages)) {
+          const normalized: DiscussionMessage[] = data.messages.map((m: any) => ({
+            type: 'community.message',
+            communityId: data.communityId,
+            content: m.content,
+            senderId: m.senderId,
+            senderRole: m.senderRole,
+            senderName: m.senderName,
+            timestamp: typeof m.timestamp === 'string' ? m.timestamp : (m.timestamp ?? ''),
+          }));
+          setMessages((prev) => [...prev, ...normalized]);
+        } else if (data?.type === 'community.message') {
+          const m = data;
+          const normalized: DiscussionMessage = {
+            type: 'community.message',
+            communityId: m.communityId,
+            content: m.content,
+            senderId: m.senderId,
+            senderRole: m.senderRole,
+            senderName: m.senderName,
+            timestamp: typeof m.timestamp === 'string' ? m.timestamp : (m.timestamp ?? ''),
+          };
+          setMessages((prev) => [...prev, normalized]);
+        } else if (data?.type === 'system') {
+          setMessages((prev) => [...prev, data]);
+        }
       } catch {}
     };
   }, []);

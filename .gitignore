@@ -1,3 +1,6 @@
+# Ignore chatbot agent env example
+chatbot-agent/.env.example
+
 # Dependencies
 node_modules/
 npm-debug.log*
@@ -66,6 +69,7 @@ web_modules/
 
 # dotenv environment variable files
 .env
+.env.example
 .env.development.local
 .env.test.local
 .env.production.local

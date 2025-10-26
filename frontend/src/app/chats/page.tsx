@@ -1,8 +1,10 @@
 "use client";
-import React, { useState, useRef } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import Layout from "../../components/Layout";
 import { Paperclip, Smile } from "lucide-react";
 import dynamic from "next/dynamic";
+import { useMentorMenteeChat } from "../../lib/useMentorMenteeChat";
+import { useSearchParams } from "next/navigation";
 type Message = {
     from: string;
     text: string;
@@ -15,59 +17,27 @@ type Message = {
 const EmojiPicker = dynamic(() => import("emoji-picker-react"), { ssr: false });
 
 const ChatsPage = () => {
-    const [selectedChat, setSelectedChat] = useState<number | null>(null);
     const [message, setMessage] = useState("");
     const [showEmojiPicker, setShowEmojiPicker] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
     const fileInputRef = useRef<HTMLInputElement | null>(null);
+    const { connections, messages, selectConnection, send, activeConnectionId, refetch, currentUserId } = useMentorMenteeChat();
+    const searchParams = useSearchParams();
 
-    // Sample chats
-    const [chats, setChats] = useState<Array<{
-        id: number;
-        name: string;
-        avatar: string;
-        lastMessage: string;
-        time: string;
-        messages: Message[];
-    }>>([
-        {
-            id: 1,
-            name: "Nidhish Shettigar",
-            avatar: "NS",
-            lastMessage: "Hey, let’s connect tomorrow!",
-            time: "10:45 AM",
-            messages: [
-                { from: "mentor", text: "Hi, how can I help you?", time: "10:00 AM", fileUrl: undefined },
-                { from: "me", text: "I wanted to know more about Flutter.", time: "10:15 AM", fileUrl: undefined },
-                { from: "mentor", text: "Sure! We can discuss that.", time: "10:30 AM", fileUrl: undefined },
-            ],
-        },
-        {
-            id: 2,
-            name: "Sanidhya K Bhandary",
-            avatar: "SB",
-            lastMessage: "I'll send you the Selenium docs.",
-            time: "10:45 AM",
-            messages: [
-                { from: "mentor", text: "Hello!", time: "5:00 PM", fileUrl: undefined },
-                { from: "me", text: "Can you guide me with testing?", time: "5:10 PM", fileUrl: undefined },
-                { from: "mentor", text: "Absolutely, I'll share resources.", time: "5:15 PM", fileUrl: undefined },
-            ],
-        },
-    ]);
+    // Auto-open connection if provided as query param
+    useEffect(() => {
+        const cid = searchParams?.get('connectionId');
+        if (cid) {
+            const id = Number(cid);
+            if (!Number.isNaN(id)) selectConnection(id);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     // Send text message
     const handleSend = () => {
-        if (!message.trim() || selectedChat === null) return;
-        const updatedChats = [...chats];
-        const chatIndex = updatedChats.findIndex((c) => c.id === selectedChat);
-        updatedChats[chatIndex].messages.push({
-            from: "me",
-            text: message,
-            time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-            fileUrl: undefined,
-        });
-        setChats(updatedChats);
+        if (!message.trim() || !activeConnectionId) return;
+        send(message.trim());
         setMessage("");
     };
 
@@ -78,27 +48,8 @@ const ChatsPage = () => {
 
     // Handle file selection
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0];
-        if (!file || selectedChat === null) return;
-
-        const fileUrl = URL.createObjectURL(file); // ✅ local preview
-
-        const updatedChats = [...chats];
-        const chatIndex = updatedChats.findIndex((c) => c.id === selectedChat);
-
-        const newMessage: Message = {
-            from: "me",
-            text: `📎 ${file.name}`,
-            time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-            fileUrl,
-        };
-
-        updatedChats[chatIndex].messages.push(newMessage);
-        setChats(updatedChats);
-        // Reset file input
-        if (fileInputRef.current) {
-            fileInputRef.current.value = '';
-        }
+        // File sending not implemented yet for realtime; ignore selection for now
+        if (fileInputRef.current) fileInputRef.current.value = '';
     };
 
     // Handle emoji click
@@ -108,25 +59,33 @@ const ChatsPage = () => {
     };
 
     // Filter chats based on search query
-    const filteredChats = chats.filter(chat =>
-        chat.name.toLowerCase().includes(searchQuery.toLowerCase())
-    ).sort((a, b) => {
+    const filteredChats = useMemo(() => {
+        const list = connections.map((c: any) => ({
+            id: c.connectionId,
+            name: c.counterpart?.name || `Connection ${c.connectionId}`,
+            avatar: (c.counterpart?.name || '?').split(' ').map((w: string) => w[0]).join('').slice(0,2).toUpperCase(),
+            lastMessage: c.lastMessage?.text || '',
+            time: c.lastMessage ? new Date(c.lastMessage.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '',
+        }));
+        const filtered = list.filter((chat: any) => chat.name.toLowerCase().includes(searchQuery.toLowerCase()));
         // If there's a search query, prioritize exact matches and then partial matches
-        if (searchQuery) {
-            const aExactMatch = a.name.toLowerCase().startsWith(searchQuery.toLowerCase());
-            const bExactMatch = b.name.toLowerCase().startsWith(searchQuery.toLowerCase());
-
-            if (aExactMatch && !bExactMatch) return -1;
-            if (!aExactMatch && bExactMatch) return 1;
-        }
-        return 0; // Keep original order for non-prioritized items
-    });
+        filtered.sort((a: any, b: any) => {
+            if (searchQuery) {
+                const aExactMatch = a.name.toLowerCase().startsWith(searchQuery.toLowerCase());
+                const bExactMatch = b.name.toLowerCase().startsWith(searchQuery.toLowerCase());
+                if (aExactMatch && !bExactMatch) return -1;
+                if (!aExactMatch && bExactMatch) return 1;
+            }
+            return 0;
+        });
+        return filtered;
+    }, [connections, searchQuery]);
 
     return (
         <Layout>
             <div className="h-full bg-neutral-dark flex flex-col items-center justify-center p-1">
                 <div className="text-3xl font-bold mb-4 text-gray-900 w-full text-left p-4 rounded-t-2xl" style={{ backgroundColor: "var(--color-neutral-dark)" }}>
-                    Mentors
+                    Chats
                 </div>
                 <div className="w-full max-w-7xl h-5/6 flex border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
 
@@ -145,12 +104,12 @@ const ChatsPage = () => {
 
                         <div className="flex-1 overflow-y-auto">
                             {filteredChats.length > 0 ? (
-                                filteredChats.map((chat) => (
+                                filteredChats.map((chat: any) => (
                                     <div
                                         key={chat.id}
-                                        onClick={() => setSelectedChat(chat.id)}
+                                        onClick={() => selectConnection(chat.id)}
                                         className={`flex items-center px-4 py-3 cursor-pointer border-b border-gray-200 hover:bg-gray-100 ${
-                                            selectedChat === chat.id ? "bg-gray-100" : ""
+                                            activeConnectionId === chat.id ? "bg-gray-100" : ""
                                         }`}
                                     >
                                         <div className="w-10 h-10 flex items-center justify-center rounded-full text-white font-semibold mr-3"
@@ -190,17 +149,17 @@ const ChatsPage = () => {
 
                     {/* Chat Window */}
                     <div className="flex-1 flex flex-col" style={{ backgroundColor: "var(--color-neutral)" }}>
-                        {selectedChat ? (
+                        {activeConnectionId ? (
                             <>
                                 {/* Header */}
                                 <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
                                     <div className="flex items-center space-x-3">
                                         <div className="w-10 h-10 flex items-center justify-center rounded-full text-white font-semibold"
                                             style={{ backgroundColor: "var(--color-primary)" }}>
-                                            {chats.find((c) => c.id === selectedChat)?.avatar}
+                                            {filteredChats.find((c: any) => c.id === activeConnectionId)?.avatar}
                                         </div>
                                         <h2 className="text-lg font-semibold text-gray-900">
-                                            {chats.find((c) => c.id === selectedChat)?.name}
+                                            {filteredChats.find((c: any) => c.id === activeConnectionId)?.name}
                                         </h2>
                                     </div>
                                 </div>
@@ -209,27 +168,23 @@ const ChatsPage = () => {
 
                                 {/* Messages */}
                                 <div className="flex-1 p-6 overflow-y-auto space-y-4">
-                                    {chats.find((c) => c.id === selectedChat)?.messages.map((msg, index) => (
-                                        <div key={index} className={`flex ${msg.from === "me" ? "justify-end" : "justify-start"}`}>
+                                    {messages.map((m: any, index: number) => (
+                                        <div key={index} className={`flex ${m.senderId === currentUserId ? "justify-end" : "justify-start"}`}>
                                             <div className="max-w-xs">
                                                 <div
                                                     className={`px-4 py-2 rounded-lg text-sm relative ${
-                                                        msg.from === "me" ? "text-white" : "text-gray-900"
+                                                        m.senderId === currentUserId ? "text-white" : "text-gray-900"
                                                     }`}
                                                     style={{
                                                         backgroundColor:
-                                                            msg.from === "me"
+                                                            m.senderId === currentUserId
                                                                 ? "var(--color-primary)"
                                                                 : "var(--color-surface)",
                                                     }}
                                                 >
-                                                        {msg.fileUrl && typeof msg.fileUrl === "string" && msg.fileUrl.match(/\.(jpg|jpeg|png|gif)$/i)
-                                                            ? <img src={msg.fileUrl} alt={msg.text} className="rounded-lg max-h-32 mb-1" />
-                                                            : msg.fileUrl && typeof msg.fileUrl === "string"
-                                                                ? <a href={msg.fileUrl} target="_blank" rel="noopener noreferrer" className="underline">{msg.text}</a>
-                                                                : msg.text}
+                                                    {m.content}
                                                     <span className="block text-[10px] mt-1 opacity-70 text-right">
-                                                        {msg.time}
+                                                        {new Date(m.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                                                     </span>
                                                 </div>
                                             </div>

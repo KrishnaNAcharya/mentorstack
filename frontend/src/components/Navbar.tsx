@@ -4,6 +4,7 @@ import { Home, Bell, UserCircle, Menu, Search, LogOut, User } from "lucide-react
 import { useRouter } from "next/navigation";
 import { useState, useRef, useEffect } from "react";
 import { authAPI } from "@/lib/auth-api";
+import AvatarDisplay from "./AvatarDisplay";
 
 interface NavbarProps {
   onMenuClick?: () => void;
@@ -20,7 +21,24 @@ const Navbar = ({
 }: NavbarProps) => {
   const router = useRouter();
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [currentUser, setCurrentUser] = useState<{ name: string; avatarUrl?: string | null } | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  // Load current user info
+  useEffect(() => {
+    const loadUser = async () => {
+      try {
+        const user = await authAPI.getCurrentUser();
+        setCurrentUser({
+          name: user.user.name,
+          avatarUrl: user.user.avatarUrl || null
+        });
+      } catch (error) {
+        console.error('Failed to load user:', error);
+      }
+    };
+    loadUser();
+  }, []);
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -75,10 +93,20 @@ const Navbar = ({
         
         {/* User Menu Dropdown */}
         <div className="relative" ref={menuRef}>
-          <UserCircle
-            className="w-7 h-7 text-[var(--color-tertiary-light)] cursor-pointer hover:text-[var(--color-primary)] transition" 
+          <div
+            className="cursor-pointer"
             onClick={() => setShowUserMenu(!showUserMenu)}
-          />
+          >
+            {currentUser?.avatarUrl ? (
+              <AvatarDisplay
+                avatarUrl={currentUser.avatarUrl}
+                name={currentUser.name}
+                size="sm"
+              />
+            ) : (
+              <UserCircle className="w-7 h-7 text-[var(--color-tertiary-light)] hover:text-[var(--color-primary)] transition" />
+            )}
+          </div>
           
           {showUserMenu && (
             <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">

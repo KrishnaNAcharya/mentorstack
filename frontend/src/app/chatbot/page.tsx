@@ -1,14 +1,16 @@
 'use client';
 
 import Layout from '@/components/Layout';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { authAPI } from '@/lib/auth-api';
+import { useAiHistory } from '@/lib/useAiHistory';
 
 export default function ChatbotPage() {
   const [messages, setMessages] = useState<Array<{ role: 'user' | 'ai' | 'system'; text: string; ts: string }>>([]);
   const [input, setInput] = useState('');
   const [token, setToken] = useState<string | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
+  const { items: historyItems, loadMore, nextCursor } = useAiHistory(50);
 
   // Simple, safe-ish formatter: escape HTML, then allow **bold** and newlines
   const escapeHTML = (s: string) => s
@@ -29,6 +31,26 @@ export default function ChatbotPage() {
   useEffect(() => {
     setToken(authAPI.getToken());
   }, []);
+
+  // Seed messages with AI history (prompt then response, oldest first)
+  const mappedHistory = useMemo(() => {
+    // historyItems are newest first; reverse to oldest first
+    const chronological = [...historyItems].reverse();
+    const pairs: Array<{ role: 'user' | 'ai'; text: string; ts: string }> = [];
+    for (const it of chronological) {
+      pairs.push({ role: 'user', text: it.prompt, ts: it.timestamp });
+      pairs.push({ role: 'ai', text: it.response, ts: it.timestamp });
+    }
+    return pairs;
+  }, [historyItems]);
+
+  useEffect(() => {
+    // Only seed once initially; if you prefer merge, we can dedupe by timestamp + text
+    if (mappedHistory.length && messages.length === 0) {
+      setMessages(mappedHistory);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mappedHistory]);
 
   useEffect(() => {
     if (!token) return;
@@ -69,6 +91,13 @@ export default function ChatbotPage() {
       <div className="mx-auto max-w-6xl p-6 h-full flex flex-col min-h-0">
         <h1 className="text-2xl font-semibold mb-4 shrink-0">AI Chat</h1>
         <div className="border rounded bg-white p-4 flex-1 min-h-0 overflow-y-auto">
+          {nextCursor && (
+            <div className="mb-3 flex justify-center">
+              <button className="text-sm text-emerald-700 underline" onClick={() => loadMore()}>
+                Load older
+              </button>
+            </div>
+          )}
           {messages.map((m, i) => {
             const isUser = m.role === 'user';
             const isAI = m.role === 'ai';
