@@ -32,6 +32,8 @@ import wordsRouter from "./routes/words";
 import aiRouter from './routes/ai';
 import { bookmarksRouter } from './routes/bookmarks';
 import uploadRouter from './routes/upload';
+// Admin routes
+import { adminAuthRouter } from './routes/admin/auth';
 
 // Load environment variables
 dotenv.config();
@@ -68,6 +70,10 @@ app.use('/api/similar-questions', similarQuestionsRoute);
 app.use('/api/ai', aiRouter);
 app.use('/api/bookmarks', bookmarksRouter);
 app.use('/api/upload', uploadRouter);
+
+// Admin Routes - Protected by requireAdmin middleware
+app.use('/api/admin/auth', adminAuthRouter);
+
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', message: 'MentorStack API is running' });
@@ -84,9 +90,13 @@ app.get('/', (req, res) => {
       '/api/auth/me',
       '/api/mentees',
       '/api/mentees/profile/me',
+      '/api/mentors',
       '/api/communities',
       '/api/questions',
-      '/api/articles'
+      '/api/articles',
+      '/api/admin/auth/login',
+      '/api/admin/users',
+      '/api/admin/analytics'
     ] 
   });
 });
@@ -382,6 +392,7 @@ server.on('upgrade', (request, socket, head) => {
 server.listen(Number(PORT), '0.0.0.0', async () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
   console.log(`📊 Database: PostgreSQL`);
+  console.log(`🔐 Admin API available at http://localhost:${PORT}/api/admin`);
   console.log(`🌐 CORS enabled for: ${process.env.CORS_ORIGIN || 'http://localhost:3000'}`);
   console.log(`🔌 WebSocket endpoints ready for /ws and /ws/discussions`);
   try {

@@ -113,7 +113,8 @@
   },
   "include": [
     "src/**/*.ts",
-    "prisma/**/*.ts"
+    "prisma/**/*.ts",
+    "create-admin.ts"
   ],
   "exclude": [
     "node_modules",
