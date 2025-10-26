@@ -142,7 +142,6 @@ router.get('/:id', async (req: any, res: any) => {
       createdAt: question.createdAt,
       authorId: question.author.id,
       authorName: question.author.name,
-      authorId: question.author.id,
       authorRole: question.author.role,
       voteScore: 0,
       answers: question.answers.map((answer: any) => {

@@ -156,7 +156,6 @@ export interface Question {
   createdAt: string;
   authorId?: number;
   authorName: string;
-  authorId?: number;
   answerCount?: number;
   answers?: Answer[];
 }
