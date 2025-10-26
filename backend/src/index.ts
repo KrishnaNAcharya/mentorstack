@@ -30,6 +30,7 @@ import { ensureChatTopology } from './realtime/chat-topology';
 import wordleRouter from "./routes/wordle";
 import wordsRouter from "./routes/words";
 import aiRouter from './routes/ai';
+import { bookmarksRouter } from './routes/bookmarks';
 
 // Load environment variables
 dotenv.config();
@@ -64,6 +65,7 @@ app.use('/api/chat', chatRouter);
 app.use('/api/spellcheck', spellcheckerRoute);
 app.use('/api/similar-questions', similarQuestionsRoute);
 app.use('/api/ai', aiRouter);
+app.use('/api/bookmarks', bookmarksRouter);
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', message: 'MentorStack API is running' });

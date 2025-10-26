@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Image from "next/image";
 import { authAPI, Article } from "../../../lib/auth-api";
+import BookmarkButton from "@/components/BookmarkButton";
 import Layout from "../../../components/Layout";
 
 export default function ArticleView() {
@@ -260,6 +261,9 @@ export default function ArticleView() {
                                             </svg>
                                         </button>
                                     </div>
+                                </div>
+                                <div className="flex items-center">
+                                    <BookmarkButton kind="article" id={article.id} />
                                 </div>
                             </div>
 

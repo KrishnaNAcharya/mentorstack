@@ -22,6 +22,7 @@ import {
   Send,
   Lightbulb,
 } from "lucide-react";
+import BookmarkButton from "@/components/BookmarkButton";
 
 export default function QuestionDetailPage() {
   const params = useParams();
@@ -44,13 +45,14 @@ export default function QuestionDetailPage() {
   const [summary, setSummary] = useState("");
   const [summarizeLoading, setSummarizeLoading] = useState(false);
   const [showSummary, setShowSummary] = useState(false);
+  const [bookmarkTick, setBookmarkTick] = useState(0);
 
   useEffect(() => {
     const loadQuestion = async () => {
       if (!questionId) return;
       
       try {
-        const questionData = await authAPI.getQuestion(questionId);
+  const questionData = await authAPI.getQuestion(questionId);
         setQuestion(questionData);
         
         // Track user votes for each answer
@@ -371,7 +373,16 @@ export default function QuestionDetailPage() {
               <div className="flex-1">
                 {/* Question Header */}
                 <div className="mb-6">
-                  <h1 className="text-3xl font-bold text-gray-900 mb-3">{question.title}</h1>
+                  <div className="flex items-start justify-between gap-4">
+                    <h1 className="text-3xl font-bold text-gray-900 mb-3 flex-1">{question.title}</h1>
+                    {/* Bookmark */}
+                    {Number.isFinite(question?.id) && (
+                      <div className="mt-1">
+                        {/* @ts-ignore - dynamic import to avoid cyclic */}
+                        <BookmarkButton kind="question" id={question.id} onChange={() => setBookmarkTick((x)=>x+1)} />
+                      </div>
+                    )}
+                  </div>
                   <div className="flex items-center gap-4 text-sm text-gray-500">
                     <span>Asked by {question.authorName}</span>
                     <span>•</span>
