@@ -1,14 +1,13 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
 import { authAPI } from "../../lib/auth-api";
+import ArticleImageUpload from "../../components/ArticleImageUpload";
 import {
     Code as CodeIcon,
     Link as LinkIcon,
     List,
     ListOrdered,
-    Image as ImageIcon,
     Table,
     Quote,
     Type,
@@ -31,7 +30,6 @@ export default function CreateArticle() {
     const [images, setImages] = useState<File[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [isDraftLoaded, setIsDraftLoaded] = useState(false);
     const [showPreview, setShowPreview] = useState(false);
     const [isAutoSaving, setIsAutoSaving] = useState(false);
 
@@ -166,17 +164,8 @@ export default function CreateArticle() {
         }, 0);
     };
 
-    const insertCodeBlock = () => {
-        insertText("\n```\n", "\n```\n");
-    };
-
     const insertInlineCode = () => {
         insertText("`", "`");
-    };
-
-    const insertImage = (file: File) => {
-        const imageUrl = URL.createObjectURL(file);
-        insertText(`\n![${file.name.split(".")[0]}](${imageUrl})\n`);
     };
 
     const insertHeading = (level: number) => {
@@ -220,10 +209,6 @@ export default function CreateArticle() {
             textarea.setSelectionRange(newPosition, newPosition);
             textarea.focus();
         }, 0);
-    };
-
-    const insertHorizontalRule = () => {
-        insertText("\n---\n");
     };
 
     const insertTable = () => {
@@ -314,21 +299,6 @@ export default function CreateArticle() {
         }
     };
 
-    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files) {
-            const newImages = Array.from(e.target.files);
-            setImages([...images, ...newImages]);
-
-            newImages.forEach((file) => {
-                insertImage(file);
-            });
-        }
-    };
-
-    const handleImageRemove = (index: number) => {
-        setImages(images.filter((_, i) => i !== index));
-    };
-
     const handleTagSelect = (tag: string) => {
         if (!selectedTags.includes(tag) && selectedTags.length < 5) {
             setSelectedTags([...selectedTags, tag]);
@@ -376,12 +346,12 @@ export default function CreateArticle() {
     };
 
     const handleSaveDraft = () => {
-        const draft = {
+        localStorage.setItem('articleDraft', JSON.stringify({
             title,
             content,
             selectedTags,
             timestamp: new Date().toISOString(),
-        };
+        }));
         alert("Draft saved successfully!");
     };
 
@@ -389,24 +359,18 @@ export default function CreateArticle() {
         const interval = setInterval(() => {
             if ((title || content) && !loading) {
                 setIsAutoSaving(true);
-                const draft = {
+                localStorage.setItem('articleDraft', JSON.stringify({
                     title,
                     content,
                     selectedTags,
                     timestamp: new Date().toISOString(),
-                };
+                }));
                 setTimeout(() => setIsAutoSaving(false), 1000);
             }
         }, 30000);
 
         return () => clearInterval(interval);
     }, [title, content, selectedTags, loading]);
-
-    useEffect(() => {
-        if (!isDraftLoaded) {
-            setIsDraftLoaded(true);
-        }
-    }, [isDraftLoaded]);
 
     const renderMarkdownPreview = (text: string) => {
     let html = text;
@@ -631,21 +595,6 @@ export default function CreateArticle() {
                                                             title="Numbered List"
                                                         />
                                                         <div className="w-px h-5 bg-[#a8e4c9] mx-1"></div>
-                                                        <input
-                                                            type="file"
-                                                            multiple
-                                                            accept="image/*"
-                                                            onChange={handleImageUpload}
-                                                            className="hidden"
-                                                            id="image-upload"
-                                                        />
-                                                        <label
-                                                            htmlFor="image-upload"
-                                                            className="px-3 py-1.5 hover:bg-[#a8e4c9] rounded-md cursor-pointer transition-colors inline-block"
-                                                            title="Insert Image"
-                                                        >
-                                                            <ImageIcon size={18} />
-                                                        </label>
                                                         <ToolbarButton
                                                             onClick={insertTable}
                                                             icon={<Table size={18} />}
@@ -836,36 +785,20 @@ export default function CreateArticle() {
                                         </span>
                                         <span>{content.length} characters</span>
                                     </div>
-                                    {images.length > 0 && (
-                                        <div className="mt-6">
-                                            <h4 className="text-sm font-medium text-[#172A3A] mb-3">
-                                                Uploaded Images
-                                            </h4>
-                                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                                {images.map((image, index) => (
-                                                    <div key={index} className="relative group">
-                                                        <Image
-                                                            src={URL.createObjectURL(image)}
-                                                            alt={`Upload preview ${index + 1}`}
-                                                            width={150}
-                                                            height={150}
-                                                            className="w-full h-24 object-cover rounded-lg border border-[#a8e4c9]"
-                                                        />
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => handleImageRemove(index)}
-                                                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm hover:bg-red-600 transition-colors opacity-0 group-hover:opacity-100"
-                                                        >
-                                                            ×
-                                                        </button>
-                                                        <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white text-xs p-1 rounded-b-lg truncate">
-                                                            {image.name}
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
+                                </div>
+                                
+                                {/* Image Upload Section */}
+                                <div className="space-y-3">
+                                    <label className="block text-lg font-semibold text-[#172A3A] mb-2">
+                                        Images <span className="text-sm font-normal text-[#0e1921] ml-2">(Optional)</span>
+                                    </label>
+                                    <p className="text-sm text-[#0e1921] mb-3">
+                                        Add up to 5 images to make your article more engaging
+                                    </p>
+                                    <ArticleImageUpload
+                                        onImagesChange={setImages}
+                                        maxImages={5}
+                                    />
                                 </div>
                                 <div className="space-y-4">
                                     <div>

@@ -440,7 +440,7 @@ router.put('/:id', authenticateToken, upload.array('images', 5), async (req: any
     // Handle image URLs
     let imageUrls: string[] = [];
     
-    // Parse existing image URLs if provided
+    // Parse existing image URLs if provided (these are Cloudinary URLs to keep)
     if (existingImageUrls) {
       try {
         imageUrls = typeof existingImageUrls === 'string' 
@@ -452,10 +452,27 @@ router.put('/:id', authenticateToken, upload.array('images', 5), async (req: any
       }
     }
 
-    // Add newly uploaded images
+    // Delete old images that were removed (compare article.imageUrls with existingImageUrls)
+    if (article.imageUrls && Array.isArray(article.imageUrls)) {
+      const removedImages = article.imageUrls.filter((url: string) => !imageUrls.includes(url));
+      for (const imageUrl of removedImages) {
+        try {
+          const publicId = extractPublicId(imageUrl);
+          if (publicId) {
+            await deleteImage(publicId);
+            console.log(`Deleted removed image: ${publicId}`);
+          }
+        } catch (error) {
+          console.error('Error deleting old image:', error);
+        }
+      }
+    }
+
+    // Add newly uploaded images (Cloudinary URLs)
     if (req.files && Array.isArray(req.files)) {
       for (const file of req.files) {
-        const imageUrl = `/uploads/articles/${file.filename}`;
+        // Cloudinary multer returns the secure_url in file.path
+        const imageUrl = (file as any).path;
         imageUrls.push(imageUrl);
       }
     }

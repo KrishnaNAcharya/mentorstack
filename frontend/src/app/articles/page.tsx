@@ -102,8 +102,13 @@ export default function ArticlesPage() {
     return 'Web Development';
   };
 
-  const getArticleImage = (articleId: number) => {
-    // Generate different placeholder images for variety
+  const getArticleImage = (article: APIArticle) => {
+    // Use Cloudinary image if it exists
+    if (article.imageUrls && article.imageUrls.length > 0) {
+      return article.imageUrls[0];
+    }
+    
+    // Fallback to placeholder images for variety
     const images = [
       'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80', // Programming
       'https://images.unsplash.com/photo-1555949963-aa79dcee981c?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80', // Code
@@ -111,7 +116,7 @@ export default function ArticlesPage() {
       'https://images.unsplash.com/photo-1551288049-bebda4e38f71?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80', // Charts
       'https://images.unsplash.com/photo-1563013544-824ae1b704d3?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80', // Web design
     ];
-    return images[articleId % images.length];
+    return images[article.id % images.length];
   };
 
   if (loading) {
@@ -260,7 +265,7 @@ export default function ArticlesPage() {
                 {/* Image */}
                 <div className="w-48 h-40 bg-gradient-to-br from-blue-400 to-purple-500 flex-shrink-0">
                   <Image 
-                    src={getArticleImage(article.id)}
+                    src={getArticleImage(article)}
                     alt={article.title}
                     width={192}
                     height={160}

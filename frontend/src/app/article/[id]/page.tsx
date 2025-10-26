@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import Image from "next/image";
 import { authAPI, Article } from "../../../lib/auth-api";
 import BookmarkButton from "@/components/BookmarkButton";
+import ArticleImageUpload from "@/components/ArticleImageUpload";
 import Layout from "../../../components/Layout";
 import { Edit, Trash2, Save, XCircle } from "lucide-react";
 
@@ -20,6 +21,8 @@ export default function ArticleView() {
     const [editTitle, setEditTitle] = useState("");
     const [editContent, setEditContent] = useState("");
     const [editTags, setEditTags] = useState<string[]>([]);
+    const [editImages, setEditImages] = useState<File[]>([]);
+    const [existingImageUrls, setExistingImageUrls] = useState<string[]>([]);
     const [tagInput, setTagInput] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -28,6 +31,10 @@ export default function ArticleView() {
                 setLoading(true);
                 const response = await authAPI.getArticle(Number(id));
                 setArticle(response);
+                
+                // Debug: Log author avatar
+                console.log('Article data:', response);
+                console.log('Author Avatar URL:', response.authorAvatar);
                 
                 // set initial user vote if provided by API
                 const typed = response as Article & { userVote?: 'upvote' | 'downvote' | null };
@@ -112,6 +119,8 @@ export default function ArticleView() {
         setEditTitle(article.title);
         setEditContent(article.content);
         setEditTags(article.tags || []);
+        setExistingImageUrls(article.imageUrls || []);
+        setEditImages([]);
         setIsEditing(true);
     };
 
@@ -123,14 +132,20 @@ export default function ArticleView() {
             const formData = new FormData();
             formData.append('title', editTitle.trim());
             formData.append('content', editContent.trim());
-            formData.append('existingImageUrls', JSON.stringify(article.imageUrls));
+            formData.append('existingImageUrls', JSON.stringify(existingImageUrls));
             formData.append('tags', JSON.stringify(editTags));
+
+            // Add new images
+            editImages.forEach((image) => {
+                formData.append('images', image);
+            });
 
             await authAPI.updateArticle(article.id, formData);
             
             // Reload article to show updates
             await fetchArticle();
             setIsEditing(false);
+            setEditImages([]);
         } catch (error) {
             console.error('Error updating article:', error);
             alert('Failed to update article. Please try again.');
@@ -276,9 +291,21 @@ export default function ArticleView() {
                             {/* Article Meta */}
                             <div className="flex items-center justify-between mb-6">
                                 <div className="flex items-center gap-4">
-                                    <div className="w-12 h-12 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-full flex items-center justify-center text-white font-semibold text-lg">
-                                        {article.authorName.charAt(0).toUpperCase()}
-                                    </div>
+                                    {article.authorAvatar ? (
+                                        <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-emerald-500">
+                                            <Image
+                                                src={article.authorAvatar}
+                                                alt={article.authorName}
+                                                width={48}
+                                                height={48}
+                                                className="object-cover"
+                                            />
+                                        </div>
+                                    ) : (
+                                        <div className="w-12 h-12 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-full flex items-center justify-center text-white font-semibold text-lg">
+                                            {article.authorName.charAt(0).toUpperCase()}
+                                        </div>
+                                    )}
                                     <div>
                                         <h3 className="text-gray-900 font-semibold">{article.authorName}</h3>
                                         <div className="flex items-center gap-3 text-sm text-gray-600">
@@ -384,6 +411,19 @@ export default function ArticleView() {
                                                 Add Tag
                                             </button>
                                         </div>
+                                    </div>
+
+                                    {/* Image Upload Section */}
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                                            Images <span className="text-sm text-gray-500">(Optional)</span>
+                                        </label>
+                                        <ArticleImageUpload
+                                            onImagesChange={setEditImages}
+                                            onExistingImagesChange={setExistingImageUrls}
+                                            initialImages={existingImageUrls}
+                                            maxImages={5}
+                                        />
                                     </div>
 
                                     <div className="flex gap-2 pt-4">
