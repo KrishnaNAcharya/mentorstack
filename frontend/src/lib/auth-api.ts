@@ -281,10 +281,12 @@ export interface Tag {
 }
 
 class AuthAPI {
-  private getHeaders(includeAuth = false): HeadersInit {
-    const headers: HeadersInit = {
-      'Content-Type': 'application/json',
-    };
+  private getHeaders(includeAuth = false, includeContentType = true): HeadersInit {
+    const headers: HeadersInit = {};
+
+    if (includeContentType) {
+      headers['Content-Type'] = 'application/json';
+    }
 
     if (includeAuth) {
       const token = localStorage.getItem('authToken');
@@ -993,11 +995,13 @@ class AuthAPI {
     return response.json();
   }
 
-  async createCommunityPost(communityId: number, data: { title: string; content: string; imageUrls?: string[]; tags?: string[] }): Promise<CommunityPost> {
+  async createCommunityPost(communityId: number, data: { title: string; content: string; imageUrls?: string[]; tags?: string[] } | FormData): Promise<CommunityPost> {
+    const isFormData = data instanceof FormData;
+    
     const response = await fetch(`${API_BASE_URL}/communities/${communityId}/posts`, {
       method: 'POST',
-      headers: this.getHeaders(true),
-      body: JSON.stringify(data),
+      headers: this.getHeaders(true, !isFormData), // Don't include Content-Type for FormData
+      body: isFormData ? data : JSON.stringify(data),
     });
 
     if (!response.ok) {
@@ -1008,11 +1012,13 @@ class AuthAPI {
     return response.json();
   }
 
-  async updateCommunityPost(communityId: number, postId: number, data: { title: string; content: string; tags?: string[] }): Promise<CommunityPost> {
+  async updateCommunityPost(communityId: number, postId: number, data: { title: string; content: string; tags?: string[] } | FormData): Promise<CommunityPost> {
+    const isFormData = data instanceof FormData;
+    
     const response = await fetch(`${API_BASE_URL}/communities/${communityId}/posts/${postId}`, {
       method: 'PUT',
-      headers: this.getHeaders(true),
-      body: JSON.stringify(data),
+      headers: this.getHeaders(true, !isFormData), // Don't include Content-Type for FormData
+      body: isFormData ? data : JSON.stringify(data),
     });
 
     if (!response.ok) {

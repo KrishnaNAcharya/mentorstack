@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Layout from "../../../components/Layout";
+import ArticleImageUpload from "../../../components/ArticleImageUpload";
 import { authAPI, Community, CommunityPost } from "@/lib/auth-api";
 import { Edit, Trash2, Save, XCircle } from "lucide-react";
 
@@ -19,7 +20,8 @@ export default function CommunityDetailPage() {
   const [newPost, setNewPost] = useState({
     title: "",
     content: "",
-    tags: [] as string[]
+    tags: [] as string[],
+    images: [] as File[]
   });
   const [newTag, setNewTag] = useState("");
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
@@ -126,9 +128,30 @@ export default function CommunityDetailPage() {
         return;
       }
 
-      await authAPI.createCommunityPost(communityId, newPost);
+      // Use FormData only if there are images, otherwise use JSON
+      if (newPost.images.length > 0) {
+        const formData = new FormData();
+        formData.append('title', newPost.title.trim());
+        formData.append('content', newPost.content.trim());
+        formData.append('tags', JSON.stringify(newPost.tags));
+
+        // Add images
+        newPost.images.forEach((image) => {
+          formData.append('images', image);
+        });
+
+        await authAPI.createCommunityPost(communityId, formData);
+      } else {
+        // No images, send as JSON
+        await authAPI.createCommunityPost(communityId, {
+          title: newPost.title.trim(),
+          content: newPost.content.trim(),
+          tags: newPost.tags
+        });
+      }
+
       setShowCreatePost(false);
-      setNewPost({ title: "", content: "", tags: [] });
+      setNewPost({ title: "", content: "", tags: [], images: [] });
       setNewTag("");
       // Reload posts
       const updatedPosts = await authAPI.getCommunityPosts(communityId);
@@ -468,6 +491,27 @@ export default function CommunityDetailPage() {
                         <div className="flex-1 cursor-pointer" onClick={() => router.push(`/community/${communityId}/post/${post.id}`)}>
                           <h3 className="text-lg font-semibold text-gray-900 mb-2 hover:text-blue-600 transition-colors">{post.title}</h3>
                           <p className="text-gray-600 mb-3 line-clamp-3">{post.content}</p>
+                          
+                          {/* Post Images */}
+                          {post.imageUrls && post.imageUrls.length > 0 && (
+                            <div className="mb-3 flex gap-2 overflow-x-auto">
+                              {post.imageUrls.slice(0, 3).map((imageUrl, index) => (
+                                <div key={index} className="relative w-24 h-24 flex-shrink-0 rounded-lg overflow-hidden bg-gray-100">
+                                  <img
+                                    src={imageUrl}
+                                    alt={`Preview ${index + 1}`}
+                                    className="w-full h-full object-cover"
+                                  />
+                                </div>
+                              ))}
+                              {post.imageUrls.length > 3 && (
+                                <div className="w-24 h-24 flex-shrink-0 rounded-lg bg-gray-100 flex items-center justify-center text-gray-500 text-sm font-medium">
+                                  +{post.imageUrls.length - 3}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          
                           {post.tags && post.tags.length > 0 && (
                             <div className="flex flex-wrap gap-2 mb-2">
                               {post.tags.map((tag) => (
@@ -613,6 +657,17 @@ export default function CommunityDetailPage() {
                       ))}
                     </div>
                   )}
+                </div>
+
+                {/* Image Upload Section */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Images <span className="text-sm text-gray-500">(Optional)</span>
+                  </label>
+                  <ArticleImageUpload
+                    onImagesChange={(images) => setNewPost({...newPost, images})}
+                    maxImages={5}
+                  />
                 </div>
               </div>
 

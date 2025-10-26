@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Layout from '@/components/Layout';
 import BookmarkButton from '@/components/BookmarkButton';
+import ArticleImageUpload from '@/components/ArticleImageUpload';
 import { authAPI, CommunityPost, Community } from '@/lib/auth-api';
 import { Edit, Trash2, Save, XCircle } from 'lucide-react';
 
@@ -22,8 +23,15 @@ export default function PostPage() {
   const [editTitle, setEditTitle] = useState("");
   const [editContent, setEditContent] = useState("");
   const [editTags, setEditTags] = useState<string[]>([]);
+  const [editImages, setEditImages] = useState<File[]>([]);
+  const [existingImageUrls, setExistingImageUrls] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Memoize initial images to prevent infinite loop in ArticleImageUpload
+  const existingImageUrlsString = JSON.stringify(existingImageUrls);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const memoizedInitialImages = useMemo(() => existingImageUrls, [existingImageUrlsString]);
 
   useEffect(() => {
     const loadData = async () => {
@@ -96,6 +104,8 @@ export default function PostPage() {
     setEditTitle(post.title);
     setEditContent(post.content);
     setEditTags(post.tags || []);
+    setExistingImageUrls(post.imageUrls || []);
+    setEditImages([]);
     setIsEditing(true);
   };
 
@@ -104,19 +114,35 @@ export default function PostPage() {
 
     setIsSubmitting(true);
     try {
-      await authAPI.updateCommunityPost(parseInt(communityId), post.id, {
-        title: editTitle.trim(),
-        content: editContent.trim(),
-        tags: editTags
-      });
-      
-      // Reload post data
-      const updatedPosts = await authAPI.getCommunityPosts(parseInt(communityId));
-      const updatedPost = updatedPosts.find(p => p.id === post.id);
-      if (updatedPost) {
+      // Use FormData only if there are new images or existing images, otherwise use JSON
+      if (editImages.length > 0 || existingImageUrls.length > 0) {
+        const formData = new FormData();
+        formData.append('title', editTitle.trim());
+        formData.append('content', editContent.trim());
+        formData.append('existingImageUrls', JSON.stringify(existingImageUrls));
+        formData.append('tags', JSON.stringify(editTags));
+
+        // Add new images
+        editImages.forEach((image) => {
+          formData.append('images', image);
+        });
+
+        const updatedPost = await authAPI.updateCommunityPost(parseInt(communityId), post.id, formData);
+        setPost(updatedPost);
+      } else {
+        // No images at all, send as JSON
+        const updatedPost = await authAPI.updateCommunityPost(parseInt(communityId), post.id, {
+          title: editTitle.trim(),
+          content: editContent.trim(),
+          tags: editTags
+        });
         setPost(updatedPost);
       }
+      
+      // Exit edit mode and reset edit states
       setIsEditing(false);
+      setEditImages([]);
+      setExistingImageUrls([]);
     } catch (error) {
       console.error('Error updating post:', error);
       alert('Failed to update post. Please try again.');
@@ -298,6 +324,16 @@ export default function PostPage() {
                         ))}
                       </div>
                     </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Images (optional, max 5)</label>
+                      <ArticleImageUpload
+                        onImagesChange={setEditImages}
+                        onExistingImagesChange={setExistingImageUrls}
+                        maxImages={5}
+                        initialImages={memoizedInitialImages}
+                      />
+                    </div>
                     
                     <div className="flex gap-3 pt-4">
                       <button
@@ -370,6 +406,21 @@ export default function PostPage() {
                       <div className="text-gray-700 leading-relaxed whitespace-pre-wrap text-lg">
                         {post.content}
                       </div>
+                      
+                      {/* Post Images */}
+                      {post.imageUrls && post.imageUrls.length > 0 && (
+                        <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {post.imageUrls.map((imageUrl, index) => (
+                            <div key={index} className="relative aspect-video rounded-lg overflow-hidden bg-gray-100">
+                              <img
+                                src={imageUrl}
+                                alt={`Post image ${index + 1}`}
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </>
                 )}

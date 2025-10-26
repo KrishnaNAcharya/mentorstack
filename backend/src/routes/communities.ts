@@ -437,7 +437,9 @@ router.post('/:id/posts', authenticateToken, upload.array('images', 5), async (r
     const { title, content, tags } = req.body;
     const { userId, role } = req.user;
 
-    if (!title || !content) {
+    console.log('Create post request body:', { title, content, tags, hasFiles: !!req.files });
+
+    if (!title || !title.trim() || !content || !content.trim()) {
       return res.status(400).json({ error: 'Title and content are required' });
     }
 
@@ -610,13 +612,24 @@ router.get('/:id/posts', async (req: any, res: any) => {
 });
 
 // Update a community post (only author can update)
-router.put('/:communityId/posts/:postId', authenticateToken, async (req: any, res: any) => {
+router.put('/:communityId/posts/:postId', authenticateToken, upload.array('images', 5), async (req: any, res: any) => {
   try {
     const { communityId, postId } = req.params;
-    const { title, content, tags } = req.body;
+    const { title, content, tags, existingImageUrls } = req.body;
     const { userId } = req.user;
 
+    console.log('Update post request:', { 
+      communityId, 
+      postId, 
+      title, 
+      content, 
+      tags: typeof tags, 
+      existingImageUrls: typeof existingImageUrls,
+      hasFiles: !!req.files 
+    });
+
     if (!title || !title.trim() || !content || !content.trim()) {
+      console.log('Validation failed - title or content missing');
       return res.status(400).json({ error: 'Title and content are required' });
     }
 
@@ -640,25 +653,74 @@ router.put('/:communityId/posts/:postId', authenticateToken, async (req: any, re
       return res.status(403).json({ error: 'Only the post author can update this post' });
     }
 
+    // Handle image updates
+    let finalImageUrls: string[] = [];
+    
+    // Parse existing image URLs from the request
+    let parsedExistingUrls: string[] = [];
+    if (existingImageUrls) {
+      try {
+        parsedExistingUrls = typeof existingImageUrls === 'string' ? JSON.parse(existingImageUrls) : existingImageUrls;
+      } catch (error) {
+        console.error('Error parsing existingImageUrls:', error);
+      }
+    }
+    
+    // Add existing images that were kept
+    finalImageUrls = [...parsedExistingUrls];
+    
+    // Find images to delete (images in post.imageUrls but not in parsedExistingUrls)
+    const currentImageUrls = post.imageUrls || [];
+    const imagesToDelete = currentImageUrls.filter(url => !parsedExistingUrls.includes(url));
+    
+    // Delete removed images from Cloudinary
+    for (const imageUrl of imagesToDelete) {
+      try {
+        const publicId = extractPublicId(imageUrl);
+        if (publicId) {
+          await deleteImage(publicId);
+          console.log('Deleted image from Cloudinary:', publicId);
+        }
+      } catch (error) {
+        console.error('Error deleting image from Cloudinary:', error);
+      }
+    }
+    
+    // Add newly uploaded images from Cloudinary
+    if (req.files && Array.isArray(req.files)) {
+      for (const file of req.files) {
+        finalImageUrls.push(file.path); // file.path contains the Cloudinary URL
+      }
+    }
+
     // Update the post
     const updatedPost = await prisma.communityPost.update({
       where: { id: parseInt(postId) },
       data: {
         title: title.trim(),
-        content: content.trim()
+        content: content.trim(),
+        imageUrls: finalImageUrls
       }
     });
 
     // Handle tags update if provided
+    let parsedTags: string[] = [];
     if (tags !== undefined) {
+      try {
+        parsedTags = typeof tags === 'string' ? JSON.parse(tags) : tags;
+      } catch (error) {
+        console.error('Error parsing tags:', error);
+        parsedTags = Array.isArray(tags) ? tags : [];
+      }
+      
       // Delete existing tags
       await prisma.communityPostTag.deleteMany({
         where: { postId: parseInt(postId) }
       });
 
       // Add new tags
-      if (Array.isArray(tags) && tags.length > 0) {
-        for (const tagName of tags) {
+      if (parsedTags.length > 0) {
+        for (const tagName of parsedTags) {
           if (typeof tagName === 'string' && tagName.trim()) {
             const trimmedTagName = tagName.trim().toLowerCase();
             
@@ -688,7 +750,11 @@ router.put('/:communityId/posts/:postId', authenticateToken, async (req: any, re
     res.json(updatedPost);
   } catch (error) {
     console.error('Error updating post:', error);
-    res.status(500).json({ error: 'Failed to update post' });
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+    res.status(500).json({ 
+      error: 'Failed to update post',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 });
 
