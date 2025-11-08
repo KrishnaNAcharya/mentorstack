@@ -329,34 +329,36 @@ export default function AdminArticlesPage() {
                         filteredArticles.map((article) => (
                             <div key={article.id} className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 hover:shadow-lg hover:border-teal-300 transition-all duration-300">
                                 <div className="flex gap-6">
-                                    {/* Article Thumbnail - Clickable */}
+                                    {/* Article Thumbnail - Image or Gradient with Icon */}
                                     <div
-                                        onClick={() => setPreviewImage(
-                                            (article.imageUrls && article.imageUrls.length > 0)
-                                                ? article.imageUrls[0]
-                                                : 'https://images.unsplash.com/photo-1499750310107-5fef28a66643?w=800'
-                                        )}
-                                        className="w-48 h-32 rounded-lg overflow-hidden flex-shrink-0 bg-slate-100 cursor-pointer relative group shadow-md hover:shadow-xl transition-all duration-300"
+                                        onClick={() => {
+                                            if (article.imageUrls && article.imageUrls.length > 0) {
+                                                setPreviewImage(article.imageUrls[0]);
+                                            }
+                                        }}
+                                        className={`w-48 h-32 rounded-lg flex-shrink-0 overflow-hidden relative group shadow-md hover:shadow-xl transition-all duration-300 ${
+                                            article.imageUrls && article.imageUrls.length > 0 ? 'cursor-pointer' : 'cursor-default bg-gradient-to-br from-teal-100 to-emerald-100'
+                                        }`}
                                     >
                                         {article.imageUrls && article.imageUrls.length > 0 ? (
-                                            <img
-                                                src={article.imageUrls[0]}
-                                                alt={article.title}
-                                                className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
-                                            />
+                                            <>
+                                                <img
+                                                    src={article.imageUrls[0]}
+                                                    alt={article.title}
+                                                    className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
+                                                />
+                                                <div className="absolute inset-0 group-hover:bg-opacity-40 transition-all duration-300 flex items-center justify-center">
+                                                    <div className="transform scale-0 group-hover:scale-100 transition-transform duration-200">
+                                                        <Eye className="w-8 h-8 text-white drop-shadow-lg" />
+                                                        <p className="text-white text-xs font-semibold mt-1 text-center">Preview</p>
+                                                    </div>
+                                                </div>
+                                            </>
                                         ) : (
-                                            <img
-                                                src=""
-                                                alt="Default article thumbnail"
-                                                className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
-                                            />
-                                        )}
-                                        <div className="absolute inset-0 group-hover:bg-opacity-40 transition-all duration-300 flex items-center justify-center">
-                                            <div className="transform scale-0 group-hover:scale-100 transition-transform duration-200">
-                                                <Eye className="w-8 h-8 text-white drop-shadow-lg" />
-                                                <p className="text-white text-xs font-semibold mt-1">Preview</p>
+                                            <div className="w-full h-full flex items-center justify-center">
+                                                <FileText className="w-16 h-16 text-teal-600" />
                                             </div>
-                                        </div>
+                                        )}
                                     </div>
 
                                     {/* Article Content */}
