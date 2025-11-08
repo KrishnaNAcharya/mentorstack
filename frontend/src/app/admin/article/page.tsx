@@ -47,7 +47,7 @@ export default function AdminArticlesPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [searchQuery, setSearchQuery] = useState('');
-    const [filterRole, setFilterRole] = useState<'all' | 'mentor' | 'mentee' >('all');
+    const [filterRole, setFilterRole] = useState<'all' | 'mentor' | 'mentee'>('all');
     const [selectedArticle, setSelectedArticle] = useState<ExtendedArticle | null>(null);
     const [showDetailModal, setShowDetailModal] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -85,14 +85,14 @@ export default function AdminArticlesPage() {
 
     // Filter articles based on search and role filter
     const filteredArticles = articles.filter(article => {
-        const matchesSearch = 
+        const matchesSearch =
             article.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
             article.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
             article.author?.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
             article.tags?.some((t: any) => t.tag.name.toLowerCase().includes(searchQuery.toLowerCase()));
-        
+
         const matchesRole = filterRole === 'all' || article.authorRole === filterRole || article.author?.role === filterRole;
-        
+
         return matchesSearch && matchesRole;
     });
 
@@ -197,11 +197,15 @@ export default function AdminArticlesPage() {
                             </h1>
                             <p className="text-teal-100">Manage and moderate all platform articles</p>
                         </div>
-                        <div className="hidden lg:block">
-                            <div className="bg-white/10 rounded-full p-6">
-                                <div className="text-right">
-                                    <p className="text-sm text-teal-100">Total Articles</p>
-                                    <p className="text-4xl font-bold">{totalArticles}</p>
+                        <div className="hidden md:block">
+                            <div className="relative">
+                                <div className="h-24 w-24 rounded-full bg-white/10 flex items-center justify-center">
+                                    <div className="h-20 w-20 rounded-full bg-white/20 flex items-center justify-center">
+                                        <div className="text-center">
+                                            <p className="text-xs text-teal-100">Total</p>
+                                            <p className="text-3xl font-extrabold">{totalArticles}</p>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -283,31 +287,28 @@ export default function AdminArticlesPage() {
                             <div className="flex gap-2">
                                 <button
                                     onClick={() => setFilterRole('all')}
-                                    className={`px-4 py-2 rounded-lg text-sm font-semibold transition ${
-                                        filterRole === 'all'
+                                    className={`px-4 py-2 rounded-lg text-sm font-semibold transition ${filterRole === 'all'
                                             ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white'
                                             : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                                    }`}
+                                        }`}
                                 >
                                     All
                                 </button>
                                 <button
                                     onClick={() => setFilterRole('mentor')}
-                                    className={`px-4 py-2 rounded-lg text-sm font-semibold transition ${
-                                        filterRole === 'mentor'
+                                    className={`px-4 py-2 rounded-lg text-sm font-semibold transition ${filterRole === 'mentor'
                                             ? 'bg-gradient-to-r from-purple-500 to-purple-600 text-white'
                                             : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                                    }`}
+                                        }`}
                                 >
                                     Mentors
                                 </button>
                                 <button
                                     onClick={() => setFilterRole('mentee')}
-                                    className={`px-4 py-2 rounded-lg text-sm font-semibold transition ${
-                                        filterRole === 'mentee'
+                                    className={`px-4 py-2 rounded-lg text-sm font-semibold transition ${filterRole === 'mentee'
                                             ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white'
                                             : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                                    }`}
+                                        }`}
                                 >
                                     Mentees
                                 </button>
@@ -329,10 +330,10 @@ export default function AdminArticlesPage() {
                             <div key={article.id} className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 hover:shadow-lg hover:border-teal-300 transition-all duration-300">
                                 <div className="flex gap-6">
                                     {/* Article Thumbnail - Clickable */}
-                                    <div 
+                                    <div
                                         onClick={() => setPreviewImage(
-                                            (article.imageUrls && article.imageUrls.length > 0) 
-                                                ? article.imageUrls[0] 
+                                            (article.imageUrls && article.imageUrls.length > 0)
+                                                ? article.imageUrls[0]
                                                 : 'https://images.unsplash.com/photo-1499750310107-5fef28a66643?w=800'
                                         )}
                                         className="w-48 h-32 rounded-lg overflow-hidden flex-shrink-0 bg-slate-100 cursor-pointer relative group shadow-md hover:shadow-xl transition-all duration-300"
@@ -345,7 +346,7 @@ export default function AdminArticlesPage() {
                                             />
                                         ) : (
                                             <img
-                                                src="https://images.unsplash.com/photo-1499750310107-5fef28a66643?w=800"
+                                                src=""
                                                 alt="Default article thumbnail"
                                                 className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
                                             />
@@ -436,10 +437,10 @@ export default function AdminArticlesPage() {
                                     </div>
 
                                     {/* Actions */}
-                                    <div className="flex flex-col gap-3 min-w-[120px]">
+                                    <div className="flex flex-col justify-center gap-3 min-w-[120px]">
                                         <button
                                             onClick={() => handleViewArticle(article)}
-                                            className="px-4 py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 hover:shadow-lg transform hover:scale-105 transition-all duration-200 text-sm font-semibold flex items-center justify-center gap-2"
+                                            className="px-4 py-2.5 bg-gradient-to-r from-secondary-dark to-secondary-dark text-white rounded-lg hover:from-primary hover:to-primary hover:shadow-lg transform hover:scale-105 transition-all duration-200 text-sm font-semibold flex items-center justify-center gap-2"
                                         >
                                             <Eye className="w-4 h-4" />
                                             View
@@ -480,152 +481,152 @@ export default function AdminArticlesPage() {
                         {/* Modal Content - Scrollable */}
                         <div className="overflow-y-auto flex-1">
                             <div className="p-6 space-y-6">
-                            {/* Article Title */}
-                            <div>
-                                <h3 className="text-3xl font-bold text-slate-800 mb-4">{selectedArticle.title}</h3>
-                                <div className="flex items-center gap-4 text-sm text-slate-600">
-                                    <div className="flex items-center gap-2">
-                                        <User className="w-4 h-4" />
-                                        <span className="font-medium">{selectedArticle.author?.name || 'Unknown'}</span>
-                                    </div>
-                                    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getRoleBadgeColor(selectedArticle.authorRole || selectedArticle.author?.role || 'mentee')}`}>
-                                        {(selectedArticle.authorRole || selectedArticle.author?.role || 'mentee').charAt(0).toUpperCase() + (selectedArticle.authorRole || selectedArticle.author?.role || 'mentee').slice(1)}
-                                    </span>
-                                    <div className="flex items-center gap-1">
-                                        <Calendar className="w-4 h-4" />
-                                        <span>Published {formatDate(selectedArticle.createdAt)}</span>
+                                {/* Article Title */}
+                                <div>
+                                    <h3 className="text-3xl font-bold text-slate-800 mb-4">{selectedArticle.title}</h3>
+                                    <div className="flex items-center gap-4 text-sm text-slate-600">
+                                        <div className="flex items-center gap-2">
+                                            <User className="w-4 h-4" />
+                                            <span className="font-medium">{selectedArticle.author?.name || 'Unknown'}</span>
+                                        </div>
+                                        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getRoleBadgeColor(selectedArticle.authorRole || selectedArticle.author?.role || 'mentee')}`}>
+                                            {(selectedArticle.authorRole || selectedArticle.author?.role || 'mentee').charAt(0).toUpperCase() + (selectedArticle.authorRole || selectedArticle.author?.role || 'mentee').slice(1)}
+                                        </span>
+                                        <div className="flex items-center gap-1">
+                                            <Calendar className="w-4 h-4" />
+                                            <span>Published {formatDate(selectedArticle.createdAt)}</span>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
 
-                            {/* Images Gallery */}
-                            {((selectedArticle.imageUrls && selectedArticle.imageUrls.length > 0) || true) && (
-                                <div>
-                                    <h4 className="text-lg font-bold text-slate-800 mb-3 flex items-center gap-2">
-                                        <ImageIcon className="w-5 h-5 text-teal-600" />
-                                        Article Images ({selectedArticle.imageUrls?.length || 3})
-                                    </h4>
-                                    <div className="grid grid-cols-2 gap-4">
-                                        {(selectedArticle.imageUrls && selectedArticle.imageUrls.length > 0 
-                                            ? selectedArticle.imageUrls 
-                                            : [
-                                                'https://images.unsplash.com/photo-1499750310107-5fef28a66643?w=800',
-                                            ]
-                                        ).map((url, idx) => (
-                                            <div 
-                                                key={idx} 
-                                                onClick={() => setPreviewImage(url)}
-                                                className="rounded-lg overflow-hidden bg-slate-100 cursor-pointer relative group shadow-md hover:shadow-xl transition-all duration-300"
-                                            >
-                                                <img
-                                                    src={url}
-                                                    alt={`Article image ${idx + 1}`}
-                                                    className="w-full h-48 object-cover transition-transform duration-300 group-hover:scale-110"
-                                                />
-                                                <div className="absolute inset-0 group-hover:bg-opacity-50 transition-all duration-300 flex items-center justify-center">
-                                                    <div className="transform scale-0 group-hover:scale-100 transition-transform duration-300">
-                                                        <Eye className="w-10 h-10 text-white" />
-                                                        <p className="text-white text-sm font-semibold mt-2">Click to preview</p>
+                                {/* Images Gallery */}
+                                {((selectedArticle.imageUrls && selectedArticle.imageUrls.length > 0) || true) && (
+                                    <div>
+                                        <h4 className="text-lg font-bold text-slate-800 mb-3 flex items-center gap-2">
+                                            <ImageIcon className="w-5 h-5 text-teal-600" />
+                                            Article Images ({selectedArticle.imageUrls?.length || 3})
+                                        </h4>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            {(selectedArticle.imageUrls && selectedArticle.imageUrls.length > 0
+                                                ? selectedArticle.imageUrls
+                                                : [
+                                                    'https://images.unsplash.com/photo-1499750310107-5fef28a66643?w=800',
+                                                ]
+                                            ).map((url, idx) => (
+                                                <div
+                                                    key={idx}
+                                                    onClick={() => setPreviewImage(url)}
+                                                    className="rounded-lg overflow-hidden bg-slate-100 cursor-pointer relative group shadow-md hover:shadow-xl transition-all duration-300"
+                                                >
+                                                    <img
+                                                        src={url}
+                                                        alt={`Article image ${idx + 1}`}
+                                                        className="w-full h-48 object-cover transition-transform duration-300 group-hover:scale-110"
+                                                    />
+                                                    <div className="absolute inset-0 group-hover:bg-opacity-50 transition-all duration-300 flex items-center justify-center">
+                                                        <div className="transform scale-0 group-hover:scale-100 transition-transform duration-300">
+                                                            <Eye className="w-10 h-10 text-white" />
+                                                            <p className="text-white text-sm font-semibold mt-2">Click to preview</p>
+                                                        </div>
                                                     </div>
                                                 </div>
-                                            </div>
-                                        ))}
+                                            ))}
+                                        </div>
                                     </div>
-                                </div>
-                            )}
+                                )}
 
-                            {/* Content */}
-                            <div>
-                                <h4 className="text-lg font-bold text-slate-800 mb-3">Content</h4>
-                                <div className="bg-slate-50 rounded-lg p-4">
-                                    <p className="text-slate-700 whitespace-pre-wrap leading-relaxed">
-                                        {selectedArticle.content}
-                                    </p>
-                                </div>
-                            </div>
-
-                            {/* Tags */}
-                            {selectedArticle.tags && selectedArticle.tags.length > 0 && (
+                                {/* Content */}
                                 <div>
-                                    <h4 className="text-lg font-bold text-slate-800 mb-3 flex items-center gap-2">
-                                        <Tag className="w-5 h-5 text-teal-600" />
-                                        Tags
-                                    </h4>
-                                    <div className="flex flex-wrap gap-2">
-                                        {selectedArticle.tags.map((tagItem, idx) => (
-                                            <span
-                                                key={idx}
-                                                className="px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-lg font-medium text-sm"
-                                            >
-                                                {tagItem.tag.name}
-                                            </span>
-                                        ))}
+                                    <h4 className="text-lg font-bold text-slate-800 mb-3">Content</h4>
+                                    <div className="bg-slate-50 rounded-lg p-4">
+                                        <p className="text-slate-700 whitespace-pre-wrap leading-relaxed">
+                                            {selectedArticle.content}
+                                        </p>
                                     </div>
                                 </div>
-                            )}
 
-                            {/* Statistics */}
-                            <div>
-                                <h4 className="text-lg font-bold text-slate-800 mb-3">Engagement Statistics</h4>
-                                <div className="grid grid-cols-4 gap-4">
-                                    <div className="bg-green-50 rounded-lg p-4 text-center">
-                                        <ThumbsUp className="w-6 h-6 text-green-600 mx-auto mb-2" />
-                                        <p className="text-2xl font-bold text-green-700">{selectedArticle.upvotes}</p>
-                                        <p className="text-sm text-green-600">Upvotes</p>
+                                {/* Tags */}
+                                {selectedArticle.tags && selectedArticle.tags.length > 0 && (
+                                    <div>
+                                        <h4 className="text-lg font-bold text-slate-800 mb-3 flex items-center gap-2">
+                                            <Tag className="w-5 h-5 text-teal-600" />
+                                            Tags
+                                        </h4>
+                                        <div className="flex flex-wrap gap-2">
+                                            {selectedArticle.tags.map((tagItem, idx) => (
+                                                <span
+                                                    key={idx}
+                                                    className="px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-lg font-medium text-sm"
+                                                >
+                                                    {tagItem.tag.name}
+                                                </span>
+                                            ))}
+                                        </div>
                                     </div>
-                                    <div className="bg-red-50 rounded-lg p-4 text-center">
-                                        <ThumbsDown className="w-6 h-6 text-red-600 mx-auto mb-2" />
-                                        <p className="text-2xl font-bold text-red-700">{selectedArticle.downvotes}</p>
-                                        <p className="text-sm text-red-600">Downvotes</p>
-                                    </div>
-                                    <div className="bg-blue-50 rounded-lg p-4 text-center">
-                                        <TrendingUp className="w-6 h-6 text-blue-600 mx-auto mb-2" />
-                                        <p className="text-2xl font-bold text-blue-700">{(selectedArticle.upvotes || 0) + (selectedArticle.downvotes || 0)}</p>
-                                        <p className="text-sm text-blue-600">Total Votes</p>
-                                    </div>
-                                    <div className="bg-purple-50 rounded-lg p-4 text-center">
-                                        <Bookmark className="w-6 h-6 text-purple-600 mx-auto mb-2" />
-                                        <p className="text-2xl font-bold text-purple-700">{selectedArticle._count?.bookmarks || 0}</p>
-                                        <p className="text-sm text-purple-600">Bookmarks</p>
+                                )}
+
+                                {/* Statistics */}
+                                <div>
+                                    <h4 className="text-lg font-bold text-slate-800 mb-3">Engagement Statistics</h4>
+                                    <div className="grid grid-cols-4 gap-4">
+                                        <div className="bg-green-50 rounded-lg p-4 text-center">
+                                            <ThumbsUp className="w-6 h-6 text-green-600 mx-auto mb-2" />
+                                            <p className="text-2xl font-bold text-green-700">{selectedArticle.upvotes}</p>
+                                            <p className="text-sm text-green-600">Upvotes</p>
+                                        </div>
+                                        <div className="bg-red-50 rounded-lg p-4 text-center">
+                                            <ThumbsDown className="w-6 h-6 text-red-600 mx-auto mb-2" />
+                                            <p className="text-2xl font-bold text-red-700">{selectedArticle.downvotes}</p>
+                                            <p className="text-sm text-red-600">Downvotes</p>
+                                        </div>
+                                        <div className="bg-blue-50 rounded-lg p-4 text-center">
+                                            <TrendingUp className="w-6 h-6 text-blue-600 mx-auto mb-2" />
+                                            <p className="text-2xl font-bold text-blue-700">{(selectedArticle.upvotes || 0) + (selectedArticle.downvotes || 0)}</p>
+                                            <p className="text-sm text-blue-600">Total Votes</p>
+                                        </div>
+                                        <div className="bg-purple-50 rounded-lg p-4 text-center">
+                                            <Bookmark className="w-6 h-6 text-purple-600 mx-auto mb-2" />
+                                            <p className="text-2xl font-bold text-purple-700">{selectedArticle._count?.bookmarks || 0}</p>
+                                            <p className="text-sm text-purple-600">Bookmarks</p>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
 
-                            {/* Author Details */}
-                            {selectedArticle.author && (
-                                <div className="bg-slate-50 rounded-lg p-4">
-                                    <h4 className="text-lg font-bold text-slate-800 mb-3">Author Information</h4>
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-white text-lg font-bold">
-                                            {selectedArticle.author.name.charAt(0).toUpperCase()}
+                                {/* Author Details */}
+                                {selectedArticle.author && (
+                                    <div className="bg-slate-50 rounded-lg p-4">
+                                        <h4 className="text-lg font-bold text-slate-800 mb-3">Author Information</h4>
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-white text-lg font-bold">
+                                                {selectedArticle.author.name.charAt(0).toUpperCase()}
+                                            </div>
+                                            <div>
+                                                <p className="font-semibold text-slate-800">{selectedArticle.author.name}</p>
+                                                <p className="text-sm text-slate-600">{selectedArticle.author.email}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Metadata */}
+                                <div className="bg-slate-50 rounded-lg p-4 text-sm text-slate-600">
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <span className="font-medium">Article ID:</span> {selectedArticle.id}
                                         </div>
                                         <div>
-                                            <p className="font-semibold text-slate-800">{selectedArticle.author.name}</p>
-                                            <p className="text-sm text-slate-600">{selectedArticle.author.email}</p>
+                                            <span className="font-medium">Author ID:</span> {selectedArticle.author?.id || 'N/A'}
                                         </div>
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Metadata */}
-                            <div className="bg-slate-50 rounded-lg p-4 text-sm text-slate-600">
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <span className="font-medium">Article ID:</span> {selectedArticle.id}
-                                    </div>
-                                    <div>
-                                        <span className="font-medium">Author ID:</span> {selectedArticle.author?.id || 'N/A'}
-                                    </div>
-                                    <div>
-                                        <span className="font-medium">Created:</span> {new Date(selectedArticle.createdAt).toLocaleString()}
-                                    </div>
-                                    {selectedArticle.updatedAt && (
                                         <div>
-                                            <span className="font-medium">Updated:</span> {new Date(selectedArticle.updatedAt).toLocaleString()}
+                                            <span className="font-medium">Created:</span> {new Date(selectedArticle.createdAt).toLocaleString()}
                                         </div>
-                                    )}
+                                        {selectedArticle.updatedAt && (
+                                            <div>
+                                                <span className="font-medium">Updated:</span> {new Date(selectedArticle.updatedAt).toLocaleString()}
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
-                            </div>
                             </div>
                         </div>
 
@@ -688,7 +689,7 @@ export default function AdminArticlesPage() {
 
             {/* Image Preview Modal */}
             {previewImage && (
-                <div 
+                <div
                     className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center p-4 z-[60] animate-fadeIn"
                     onClick={() => setPreviewImage(null)}
                 >
@@ -702,7 +703,7 @@ export default function AdminArticlesPage() {
                         </button>
 
                         {/* Image container */}
-                        <div 
+                        <div
                             className="relative max-h-[90vh] max-w-full animate-scaleIn"
                             onClick={(e) => e.stopPropagation()}
                         >
@@ -715,7 +716,6 @@ export default function AdminArticlesPage() {
                             <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-6 rounded-b-lg">
                                 <p className="text-white text-sm font-medium flex items-center gap-2">
                                     <ImageIcon className="w-4 h-4" />
-                                    Click outside to close
                                 </p>
                             </div>
                         </div>

@@ -7,6 +7,7 @@ import {
   Shield, 
   Users, 
   BookOpen, 
+  BookImage,
   FileText, 
   Settings, 
   LogOut, 
@@ -54,6 +55,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     { name: 'Users', href: '/admin/users', icon: Users },
     { name: 'Content', href: '/admin/content', icon: FileText },
     { name: 'Communities', href: '/admin/communities', icon: BookOpen },
+    { name: 'Articles', href: '/admin/article', icon: BookImage },
     { name: 'Settings', href: '/admin/settings', icon: Settings },
   ];
 

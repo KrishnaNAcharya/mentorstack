@@ -150,13 +150,41 @@ router.get('/articles', async (req: any, res: any) => {
         orderBy: { createdAt: 'desc' },
         select: {
           id: true,
+          authorId: true,
+          authorRole: true,
           title: true,
           content: true,
+          imageUrls: true,
           upvotes: true,
           downvotes: true,
           createdAt: true,
-          author: { select: { id: true, name: true, email: true, role: true } },
-          _count: { select: { bookmarks: true, tags: true } }
+          updatedAt: true,
+          author: { 
+            select: { 
+              id: true, 
+              name: true, 
+              email: true, 
+              role: true,
+              avatarUrl: true 
+            } 
+          },
+          tags: {
+            select: {
+              tag: { 
+                select: { 
+                  id: true, 
+                  name: true 
+                } 
+              }
+            }
+          },
+          _count: { 
+            select: { 
+              votes: true,
+              bookmarks: true, 
+              tags: true 
+            } 
+          }
         }
       }),
       prisma.article.count()
@@ -166,6 +194,97 @@ router.get('/articles', async (req: any, res: any) => {
   } catch (err) {
     console.error('Error fetching articles', err);
     res.status(500).json({ error: 'Failed to fetch articles' });
+  }
+});
+
+// GET /content/articles/:id (article details)
+router.get('/articles/:id', async (req: any, res: any) => {
+  try {
+    const id = Number.parseInt(req.params.id);
+    const article = await prisma.article.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        authorId: true,
+        authorRole: true,
+        title: true,
+        content: true,
+        imageUrls: true,
+        upvotes: true,
+        downvotes: true,
+        createdAt: true,
+        updatedAt: true,
+        author: { 
+          select: { 
+            id: true, 
+            name: true, 
+            email: true, 
+            role: true,
+            avatarUrl: true 
+          } 
+        },
+        tags: {
+          select: {
+            tag: { 
+              select: { 
+                id: true, 
+                name: true,
+                description: true 
+              } 
+            }
+          }
+        },
+        votes: {
+          select: {
+            id: true,
+            voterId: true,
+            voteType: true,
+            createdAt: true,
+            voter: {
+              select: {
+                id: true,
+                name: true,
+                email: true
+              }
+            }
+          },
+          orderBy: { createdAt: 'desc' },
+          take: 50
+        },
+        bookmarks: {
+          select: {
+            id: true,
+            userId: true,
+            createdAt: true,
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true
+              }
+            }
+          },
+          orderBy: { createdAt: 'desc' },
+          take: 50
+        },
+        _count: { 
+          select: { 
+            votes: true,
+            bookmarks: true, 
+            tags: true 
+          } 
+        }
+      }
+    });
+
+    if (!article) {
+      return res.status(404).json({ error: 'Article not found' });
+    }
+
+    res.json(article);
+  } catch (err) {
+    console.error('Error fetching article details', err);
+    res.status(500).json({ error: 'Failed to fetch article details' });
   }
 });
 
