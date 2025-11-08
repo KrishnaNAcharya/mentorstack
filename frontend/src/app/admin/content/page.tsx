@@ -13,6 +13,7 @@ import {
   User
 } from "lucide-react";
 
+// request for the questions tab only
 // Only questions tab remains per request
 type ContentType = 'questions';
 
@@ -325,7 +326,7 @@ export default function ContentAdminPage() {
                       </div>
                     </div>
 
-                    {/* Answers list with delete */}
+                    {/* Answer list with the delete functionalities*/}
                     <div className="space-y-3">
                       <h5 className="text-sm font-semibold tracking-wide text-emerald-700/90 uppercase">Answers ({questionDetails._count?.answers ?? 0})</h5>
                       <div className="space-y-3 max-h-72 overflow-y-auto pr-1">

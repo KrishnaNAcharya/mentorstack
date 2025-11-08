@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { adminAPI } from "@/lib/admin-api";
 import { 
   Shield, 
@@ -23,6 +23,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [adminName, setAdminName] = useState("");
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
     checkAuth();
@@ -49,12 +50,21 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   };
 
   const navigation = [
-    { name: 'Dashboard', href: '/admin/dashboard', icon: BarChart3, current: true },
-    { name: 'Users', href: '/admin/users', icon: Users, current: false },
-    { name: 'Content', href: '/admin/content', icon: FileText, current: false },
-    { name: 'Communities', href: '/admin/communities', icon: BookOpen, current: false },
-    { name: 'Settings', href: '/admin/settings', icon: Settings, current: false },
+    { name: 'Dashboard', href: '/admin/dashboard', icon: BarChart3 },
+    { name: 'Users', href: '/admin/users', icon: Users },
+    { name: 'Content', href: '/admin/content', icon: FileText },
+    { name: 'Communities', href: '/admin/communities', icon: BookOpen },
+    { name: 'Settings', href: '/admin/settings', icon: Settings },
   ];
+
+  const isActive = (href: string) => {
+    // Mark exact match or nested route under the section as active.
+    // Special case: treat "/admin" as dashboard too, if that's the landing page.
+    if (href === '/admin/dashboard' && (pathname === '/admin' || pathname === '/admin/')) {
+      return true;
+    }
+    return pathname === href || pathname.startsWith(`${href}/`);
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -104,19 +114,20 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           <nav className="mt-8 flex-1 px-2 space-y-1">
             {navigation.map((item) => {
               const Icon = item.icon;
+              const active = isActive(item.href);
               return (
                 <button
                   key={item.name}
                   onClick={() => router.push(item.href)}
                   className={`group flex items-center w-full px-2 py-2 text-sm font-medium rounded-md transition-colors ${
-                    item.current
+                    active
                       ? 'bg-teal-100 text-teal-900'
                       : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                   }`}
                 >
                   <Icon
                     className={`mr-3 flex-shrink-0 h-5 w-5 ${
-                      item.current ? 'text-teal-500' : 'text-gray-400 group-hover:text-gray-500'
+                      active ? 'text-teal-500' : 'text-gray-400 group-hover:text-gray-500'
                     }`}
                   />
                   {item.name}
@@ -182,6 +193,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
             <nav className="flex-1 px-2 space-y-1">
               {navigation.map((item) => {
                 const Icon = item.icon;
+                const active = isActive(item.href);
                 return (
                   <button
                     key={item.name}
@@ -190,14 +202,14 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                       setSidebarOpen(false);
                     }}
                     className={`group flex items-center w-full px-2 py-2 text-sm font-medium rounded-md transition-colors ${
-                      item.current
+                      active
                         ? 'bg-teal-100 text-teal-900'
                         : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                     }`}
                   >
                     <Icon
                       className={`mr-3 flex-shrink-0 h-5 w-5 ${
-                        item.current ? 'text-teal-500' : 'text-gray-400 group-hover:text-gray-500'
+                        active ? 'text-teal-500' : 'text-gray-400 group-hover:text-gray-500'
                       }`}
                     />
                     {item.name}
