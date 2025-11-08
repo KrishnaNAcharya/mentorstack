@@ -326,6 +326,29 @@ class AdminAPI {
     return response.json();
   }
 
+  async updateUser(userId: number, data: {
+    name?: string;
+    email?: string;
+    jobTitle?: string;
+    department?: string;
+    bio?: string;
+    skills?: string[];
+    location?: string;
+  }): Promise<{ message: string; user: any }> {
+    const response = await fetch(`${ADMIN_API_BASE_URL}/users/${userId}`, {
+      method: 'PATCH',
+      headers: this.getHeaders(true),
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to update user');
+    }
+
+    return response.json();
+  }
+
   async updateUserRole(userId: number, role: 'mentor' | 'mentee' | 'admin'): Promise<{ message: string; user: any }> {
     const response = await fetch(`${ADMIN_API_BASE_URL}/users/${userId}/role`, {
       method: 'PATCH',

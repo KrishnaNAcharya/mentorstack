@@ -8,55 +8,50 @@ const router = express.Router();
 // Apply admin authentication to all routes
 router.use(requireAdmin);
 
-// Get all users with pagination and search
+// Get all users with filtering, pagination, and search
 router.get('/', async (req: any, res: any) => {
   try {
-    const { 
-      page = 1, 
-      limit = 20, 
-      search = '', 
-      role = '', 
-      sortBy = 'createdAt', 
-      sortOrder = 'desc' 
-    } = req.query;
-
-  const skip = (Number.parseInt(page) - 1) * Number.parseInt(limit);
-  const take = Number.parseInt(limit);
+    const { page = '1', limit = '100', role, search } = req.query;
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const skip = (pageNum - 1) * limitNum;
 
     // Build where clause
-    const whereClause: any = {};
-    
+    const where: any = {};
+
+    if (role) {
+      where.role = role;
+    }
+
     if (search) {
-      whereClause.OR = [
+      where.OR = [
         { name: { contains: search, mode: 'insensitive' } },
         { email: { contains: search, mode: 'insensitive' } },
         { jobTitle: { contains: search, mode: 'insensitive' } },
-        { department: { contains: search, mode: 'insensitive' } }
+        { skills: { hasSome: [search] } }
       ];
     }
 
-    if (role && role !== 'all') {
-      whereClause.role = role;
-    }
-
     // Get users with counts
-    const [users, totalCount] = await Promise.all([
+    const [users, total] = await Promise.all([
       prisma.user.findMany({
-        where: whereClause,
+        where,
         skip,
-        take,
-        orderBy: { [sortBy]: sortOrder },
+        take: limitNum,
+        orderBy: { createdAt: 'desc' },
         select: {
           id: true,
           name: true,
           email: true,
           role: true,
-          reputation: true,
           avatarUrl: true,
           jobTitle: true,
           department: true,
+          bio: true,
+          skills: true,
+          location: true,
+          reputation: true,
           createdAt: true,
-          updatedAt: true,
           _count: {
             select: {
               questions: true,
@@ -64,57 +59,83 @@ router.get('/', async (req: any, res: any) => {
               articles: true,
               mentorConnections: true,
               menteeConnections: true,
-              communityPosts: true,
-              communityMemberships: true
+              communityPosts: true
             }
           }
         }
       }),
-      prisma.user.count({ where: whereClause })
+      prisma.user.count({ where })
     ]);
 
-    // Calculate additional stats for each user
-    const usersWithStats = await Promise.all(
-      users.map(async (user) => {
-        const [recentQuestions, recentArticles, badges] = await Promise.all([
-          prisma.question.count({
-            where: {
-              authorId: user.id,
-              createdAt: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) }
-            }
-          }),
-          prisma.article.count({
-            where: {
-              authorId: user.id,
-              createdAt: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) }
-            }
-          }),
-          prisma.userBadge.count({ where: { userId: user.id } })
-        ]);
-        return {
-          ...user,
-          stats: {
-            ...user._count,
-            recentQuestions,
-            recentArticles,
-            badges,
-            totalActivity: user._count.questions + user._count.answers + user._count.articles + user._count.communityPosts
-          }
-        };
-      })
-    );
-
     res.json({
-      users: usersWithStats,
+      users,
       pagination: {
-        page: Number.parseInt(page),
-        limit: Number.parseInt(limit),
-        total: totalCount,
-        totalPages: Math.ceil(totalCount / Number.parseInt(limit))
+        page: pageNum,
+        limit: limitNum,
+        total,
+        totalPages: Math.ceil(total / limitNum)
       }
     });
   } catch (error) {
-    console.error('Error fetching users:', error);
+    console.error('Get users error:', error);
+    res.status(500).json({ error: 'Failed to fetch users' });
+  }
+});
+
+// Get users by role (mentors, mentees, admins)
+router.get('/by-role/:role', async (req: any, res: any) => {
+  try {
+    const { role } = req.params;
+    const { search } = req.query;
+
+    // Validate role
+    if (!['mentor', 'mentee', 'admin'].includes(role)) {
+      return res.status(400).json({ error: 'Invalid role' });
+    }
+
+    const where: any = { role: role as Role };
+
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } },
+        { jobTitle: { contains: search, mode: 'insensitive' } },
+        { skills: { hasSome: [search] } }
+      ];
+    }
+
+    const users = await prisma.user.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        avatarUrl: true,
+        jobTitle: true,
+        department: true,
+        bio: true,
+        skills: true,
+        location: true,
+        reputation: true,
+        createdAt: true,
+        _count: {
+          select: {
+            questions: true,
+            answers: true,
+            articles: true,
+            mentorConnections: true,
+            menteeConnections: true,
+            communityPosts: true
+          }
+        }
+      }
+    });
+
+    res.json({ users });
+  } catch (error) {
+    console.error('Get users by role error:', error);
     res.status(500).json({ error: 'Failed to fetch users' });
   }
 });
@@ -122,53 +143,23 @@ router.get('/', async (req: any, res: any) => {
 // Get single user details
 router.get('/:id', async (req: any, res: any) => {
   try {
-    const { id } = req.params;
+    const userId = parseInt(req.params.id);
 
     const user = await prisma.user.findUnique({
-  where: { id: Number.parseInt(id) },
-      include: {
-        questions: {
-          take: 5,
-          orderBy: { createdAt: 'desc' },
-          select: {
-            id: true,
-            title: true,
-            createdAt: true,
-            _count: { select: { answers: true } }
-          }
-        },
-        articles: {
-          take: 5,
-          orderBy: { createdAt: 'desc' },
-          select: {
-            id: true,
-            title: true,
-            createdAt: true,
-            upvotes: true,
-            downvotes: true
-          }
-        },
-        mentorConnections: {
-          take: 5,
-          select: {
-            id: true,
-            mentee: { select: { id: true, name: true, email: true } },
-            acceptedAt: true
-          }
-        },
-        menteeConnections: {
-          take: 5,
-          select: {
-            id: true,
-            mentor: { select: { id: true, name: true, email: true } },
-            acceptedAt: true
-          }
-        },
-        userBadges: {
-          include: {
-            badge: true
-          }
-        },
+      where: { id: userId },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        avatarUrl: true,
+        jobTitle: true,
+        department: true,
+        bio: true,
+        skills: true,
+        location: true,
+        reputation: true,
+        createdAt: true,
         _count: {
           select: {
             questions: true,
@@ -186,119 +177,212 @@ router.get('/:id', async (req: any, res: any) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    res.json(user);
+    res.json({ user });
   } catch (error) {
-    console.error('Error fetching user details:', error);
+    console.error('Get user details error:', error);
     res.status(500).json({ error: 'Failed to fetch user details' });
+  }
+});
+
+// Update user profile (admin can edit any user)
+router.patch('/:id', async (req: any, res: any) => {
+  try {
+    const userId = parseInt(req.params.id);
+    const { name, email, jobTitle, department, bio, skills, location } = req.body;
+
+    // Check if user exists
+    const existingUser = await prisma.user.findUnique({
+      where: { id: userId }
+    });
+
+    if (!existingUser) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Check if email is already taken by another user
+    if (email && email !== existingUser.email) {
+      const emailExists = await prisma.user.findUnique({
+        where: { email }
+      });
+
+      if (emailExists) {
+        return res.status(400).json({ error: 'Email already in use' });
+      }
+    }
+
+    // Update user
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        ...(name && { name }),
+        ...(email && { email }),
+        ...(jobTitle !== undefined && { jobTitle }),
+        ...(department !== undefined && { department }),
+        ...(bio !== undefined && { bio }),
+        ...(skills && { skills }),
+        ...(location !== undefined && { location })
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        avatarUrl: true,
+        jobTitle: true,
+        department: true,
+        bio: true,
+        skills: true,
+        location: true,
+        reputation: true,
+        createdAt: true
+      }
+    });
+
+    res.json({
+      message: 'User updated successfully',
+      user: updatedUser
+    });
+  } catch (error) {
+    console.error('Update user error:', error);
+    res.status(500).json({ error: 'Failed to update user' });
   }
 });
 
 // Update user role
 router.patch('/:id/role', async (req: any, res: any) => {
   try {
-    const { id } = req.params;
+    const userId = parseInt(req.params.id);
     const { role } = req.body;
 
-    if (!Object.values(Role).includes(role)) {
+    // Validate role
+    if (!['mentor', 'mentee', 'admin'].includes(role)) {
       return res.status(400).json({ error: 'Invalid role' });
     }
 
-    const user = await prisma.user.update({
-  where: { id: Number.parseInt(id) },
-      data: { role },
-      select: { id: true, name: true, email: true, role: true }
-    });
-    res.json({ message: 'User role updated successfully', user });
-  } catch (error) {
-    console.error('Error updating user role:', error);
-    res.status(500).json({ error: 'Failed to update user role' });
-  }
-});
-
-// Suspend/Unsuspend user - omitted (no suspension fields in schema)
-
-// Delete user (soft delete)
-router.delete('/:id', async (req: any, res: any) => {
-  try {
-    const { id } = req.params;
-
     // Check if user exists
     const user = await prisma.user.findUnique({
-      where: { id: Number.parseInt(id) },
-      select: { id: true, name: true, email: true, role: true }
+      where: { id: userId }
     });
 
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    // Prevent deleting other admins
-  if (user.role === Role.admin && req.user.userId !== Number.parseInt(id)) {
-      return res.status(403).json({ error: 'Cannot delete other admin users' });
-    }
-
-    // Soft delete by updating email and marking as deleted
-    // Soft delete pattern: scramble email & name (fields that exist in schema)
-    await prisma.user.update({
-      where: { id: Number.parseInt(id) },
-      data: {
-        email: `deleted_${Date.now()}_${user.email}`,
-        name: `[Deleted] ${user.name}`
+    // Update role
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: { role: role as Role },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        avatarUrl: true,
+        reputation: true
       }
     });
-    res.json({ message: 'User deleted successfully' });
+
+    res.json({
+      message: 'User role updated successfully',
+      user: updatedUser
+    });
   } catch (error) {
-    console.error('Error deleting user:', error);
+    console.error('Update user role error:', error);
+    res.status(500).json({ error: 'Failed to update user role' });
+  }
+});
+
+// Delete/Deactivate user
+router.delete('/:id', async (req: any, res: any) => {
+  try {
+    const userId = parseInt(req.params.id);
+
+    // Check if user exists
+    const user = await prisma.user.findUnique({
+      where: { id: userId }
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Prevent admin from deleting themselves
+    if (userId === req.user.id) {
+      return res.status(400).json({ error: 'Cannot delete your own account' });
+    }
+
+    // Delete user (this will cascade delete related records based on schema)
+    await prisma.user.delete({
+      where: { id: userId }
+    });
+
+    res.json({
+      message: 'User deleted successfully'
+    });
+  } catch (error) {
+    console.error('Delete user error:', error);
     res.status(500).json({ error: 'Failed to delete user' });
   }
 });
 
 // Get user statistics
-router.get('/stats/overview', async (req: any, res: any) => {
+router.get('/:id/stats', async (req: any, res: any) => {
   try {
-    const [totalUsers, mentors, mentees, admins, newUsersThisMonth, newUsersLastMonth] = await Promise.all([
-      prisma.user.count(),
-      prisma.user.count({ where: { role: Role.mentor } }),
-      prisma.user.count({ where: { role: Role.mentee } }),
-      prisma.user.count({ where: { role: Role.admin } }),
-      prisma.user.count({
-        where: { createdAt: { gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1) } }
-      }),
-      prisma.user.count({
-        where: {
-          createdAt: {
-            gte: new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1),
-            lt: new Date(new Date().getFullYear(), new Date().getMonth(), 1)
-          }
-        }
-      })
-    ]);
-    // Active = users with any recent question/answer/article in last 30 days
-    const activeUsers = await prisma.user.count({
-      where: {
-        OR: [
-          { questions: { some: { createdAt: { gte: new Date(Date.now() - 30*24*60*60*1000) } } } },
-          { answers: { some: { createdAt: { gte: new Date(Date.now() - 30*24*60*60*1000) } } } },
-          { articles: { some: { createdAt: { gte: new Date(Date.now() - 30*24*60*60*1000) } } } }
-        ]
+    const userId = parseInt(req.params.id);
+
+    // Check if user exists
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        name: true,
+        role: true,
+        reputation: true,
+        createdAt: true
       }
     });
-    const growthRate = newUsersLastMonth > 0 ? ((newUsersThisMonth - newUsersLastMonth)/newUsersLastMonth*100) : 0;
-    res.json({
-      totalUsers,
-      activeUsers,
-      mentors,
-      mentees,
-      admins,
-      newUsersThisMonth,
-      newUsersLastMonth,
-      growthRate: Math.round(growthRate*100)/100,
-      activityRate: totalUsers > 0 ? Math.round((activeUsers/totalUsers)*100*100)/100 : 0
-    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Get detailed statistics
+    const [
+      questionsCount,
+      answersCount,
+      articlesCount,
+      communityPostsCount,
+      mentorConnectionsCount,
+      menteeConnectionsCount
+    ] = await Promise.all([
+      prisma.question.count({ where: { authorId: userId } }),
+      prisma.answer.count({ where: { authorId: userId } }),
+      prisma.article.count({ where: { authorId: userId } }),
+      prisma.communityPost.count({ where: { authorId: userId } }),
+      prisma.connection.count({ where: { mentor: { id: userId } } }),
+      prisma.connection.count({ where: { mentee: { id: userId } } })
+    ]);
+
+    const stats = {
+      user,
+      content: {
+        questions: questionsCount,
+        answers: answersCount,
+        articles: articlesCount,
+        communityPosts: communityPostsCount
+      },
+      connections: {
+        asMentor: mentorConnectionsCount,
+        asMentee: menteeConnectionsCount,
+        total: mentorConnectionsCount + menteeConnectionsCount
+      }
+    };
+
+    res.json({ stats });
   } catch (error) {
-    console.error('Error fetching user statistics:', error);
+    console.error('Get user stats error:', error);
     res.status(500).json({ error: 'Failed to fetch user statistics' });
   }
 });
 
-export default router;
+export { router as adminUsersRouter };

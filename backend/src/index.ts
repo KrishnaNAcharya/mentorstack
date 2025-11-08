@@ -34,7 +34,7 @@ import { bookmarksRouter } from './routes/bookmarks';
 import uploadRouter from './routes/upload';
 // Admin routes
 import { adminAuthRouter } from './routes/admin/auth';
-import adminUsersRouter from './routes/admin/users';
+import { adminUsersRouter } from './routes/admin/users';
 import adminStatsRouter from './routes/admin/stats';
 import adminCommunitiesRouter from './routes/admin/communities';
 import adminContentRouter from './routes/admin/content';
