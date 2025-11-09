@@ -297,35 +297,41 @@ model Badge {
   id                  Int         @id @default(autoincrement())
   name                String      @unique
   description         String
-  reputationThreshold Int
+  imageUrl            String? // Badge icon/image URL (SVG or PNG)
+  reputationThreshold Int // Minimum reputation required to earn this badge
+  isActive            Boolean     @default(true) // Allow disabling badges without deletion
   createdAt           DateTime    @default(now())
   updatedAt           DateTime    @updatedAt
   userBadges          UserBadge[]
 }
 
 model UserBadge {
-  id        Int      @id @default(autoincrement())
-  userId    Int
-  badgeId   Int
-  awardedAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  badge     Badge    @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  badgeId     Int
+  awardedAt   DateTime @default(now())
+  isDisplayed Boolean  @default(true) // Allow users to hide certain badges from their profile
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badge       Badge    @relation(fields: [badgeId], references: [id], onDelete: Cascade)
 
   @@unique([userId, badgeId])
   @@index([badgeId])
+  @@index([userId, awardedAt]) // Efficient queries for user's badges timeline
 }
 
 model ReputationHistory {
-  id        Int      @id @default(autoincrement())
-  userId    Int
-  change    Int
-  reason    String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id            Int      @id @default(autoincrement())
+  userId        Int
+  points        Int // Reputation points gained or lost (can be positive or negative)
+  action        String // Action that triggered reputation change: "question_posted", "answer_accepted", "upvote_received", etc.
+  entityType    String? // Type of entity involved: "question", "answer", "article", "community_post"
+  entityId      Int? // ID of the related entity (question, answer, article, etc.)
+  description   String? // Optional human-readable description
+  createdAt     DateTime @default(now())
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@index([userId, createdAt]) // Efficient queries for user reputation timeline
 }
 
 // ---------- AI Logs ----------
