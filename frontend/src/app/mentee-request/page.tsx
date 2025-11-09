@@ -65,7 +65,11 @@ const RequestsPage: React.FC = () => {
                 )
             );
             
-            alert(`Request accepted successfully! You can now chat with ${response.data.mentee.name}.`);
+            if (response.data.reputation?.applied) {
+                alert(`Request accepted successfully! (+${response.data.reputation.appliedPoints} reputation, total ${response.data.reputation.currentReputation})`);
+            } else {
+                alert(`Request accepted successfully! You can now chat with ${response.data.mentee.name}.`);
+            }
         } catch (error) {
             console.error('Error accepting request:', error);
             alert('Failed to accept request. Please try again.');

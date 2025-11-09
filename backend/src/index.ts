@@ -32,6 +32,7 @@ import wordsRouter from "./routes/words";
 import aiRouter from './routes/ai';
 import { bookmarksRouter } from './routes/bookmarks';
 import uploadRouter from './routes/upload';
+import { reputationRouter } from './routes/reputation';
 // Admin routes
 import { adminAuthRouter } from './routes/admin/auth';
 import { adminUsersRouter } from './routes/admin/users';
@@ -75,6 +76,7 @@ app.use('/api/similar-questions', similarQuestionsRoute);
 app.use('/api/ai', aiRouter);
 app.use('/api/bookmarks', bookmarksRouter);
 app.use('/api/upload', uploadRouter);
+app.use('/api/reputation', reputationRouter);
 
 // Admin Routes - Protected by requireAdmin middleware
 app.use('/api/admin/auth', adminAuthRouter);

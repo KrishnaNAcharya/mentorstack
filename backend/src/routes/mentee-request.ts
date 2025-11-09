@@ -1,14 +1,14 @@
 import express from 'express';
 import jwt from 'jsonwebtoken';
 import { prisma } from '../../lib/prisma';
+import { awardReputation } from '../../lib/reputation';
 import { MentorshipStatus, Role } from '@prisma/client';
 
 const router = express.Router();
 
 // Middleware to verify JWT token
 const authenticateToken = (req: any, res: any, next: any) => {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
+    const token = req.headers['authorization']?.split(' ')[1];
 
     if (!token) {
         return res.status(401).json({ message: 'Access token required' });
@@ -106,13 +106,13 @@ router.get('/requests', authenticateToken, async (req: any, res: any) => {
 router.post('/accept/:requestId', authenticateToken, async (req: any, res: any) => {
     try {
         const currentUserId = req.user?.userId;
-        const requestId = parseInt(req.params.requestId);
+    const requestId = Number.parseInt(req.params.requestId);
 
         if (!currentUserId) {
             return res.status(401).json({ error: 'User not authenticated' });
         }
 
-        if (isNaN(requestId)) {
+    if (Number.isNaN(requestId)) {
             return res.status(400).json({ error: 'Invalid request ID' });
         }
 
@@ -147,7 +147,7 @@ router.post('/accept/:requestId', authenticateToken, async (req: any, res: any) 
             });
         }
 
-        // Use a transaction to update both MentorshipRequest and create Connection
+        // Use a transaction to update MentorshipRequest, create Connection & Conversation, and award reputation
         const result = await prisma.$transaction(async (tx) => {
             // 1. Update MentorshipRequest status to 'accepted'
             const updatedRequest = await tx.mentorshipRequest.update({
@@ -196,10 +196,20 @@ router.post('/accept/:requestId', authenticateToken, async (req: any, res: any) 
                 }
             });
 
+            // 4. Award reputation to mentor (+10, unlimited)
+            const rep = await awardReputation(tx as any, {
+                userId: currentUserId,
+                action: 'mentorship_request_accepted',
+                entityType: 'mentorship_request',
+                entityId: updatedRequest.id,
+                customDescription: 'Helping others'
+            });
+
             return {
                 mentorshipRequest: updatedRequest,
                 connection,
-                conversation
+                conversation,
+                reputation: rep
             };
         });
 
@@ -211,7 +221,8 @@ router.post('/accept/:requestId', authenticateToken, async (req: any, res: any) 
                 status: result.mentorshipRequest.status,
                 connectionId: result.connection.id,
                 conversationId: result.conversation.id,
-                mentee: result.mentorshipRequest.mentee
+                mentee: result.mentorshipRequest.mentee,
+                reputation: result.reputation
             }
         });
 
@@ -238,13 +249,13 @@ router.post('/accept/:requestId', authenticateToken, async (req: any, res: any) 
 router.post('/reject/:requestId', authenticateToken, async (req: any, res: any) => {
     try {
         const currentUserId = req.user?.userId;
-        const requestId = parseInt(req.params.requestId);
+    const requestId = Number.parseInt(req.params.requestId);
 
         if (!currentUserId) {
             return res.status(401).json({ error: 'User not authenticated' });
         }
 
-        if (isNaN(requestId)) {
+    if (Number.isNaN(requestId)) {
             return res.status(400).json({ error: 'Invalid request ID' });
         }
 

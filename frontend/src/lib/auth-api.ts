@@ -280,6 +280,33 @@ export interface Tag {
   color: string;
 }
 
+export interface ReputationEntry {
+  id: number;
+  points: number;
+  action: string;
+  description?: string | null;
+  entityType?: string | null;
+  entityId?: number | null;
+  createdAt: string;
+}
+
+export interface ReputationHistoryResponse {
+  entries: ReputationEntry[];
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
+// Award result shape mirroring backend response
+export interface ReputationAwardResult {
+  applied: boolean;
+  appliedPoints: number;
+  currentReputation: number;
+  reason: string;
+  capRemaining?: number;
+}
+
 class AuthAPI {
   private getHeaders(includeAuth = false, includeContentType = true): HeadersInit {
     const headers: HeadersInit = {};
@@ -572,7 +599,7 @@ class AuthAPI {
     return response.json();
   }
 
-  async sendMentorshipRequest(mentorId: string, message: string): Promise<{ message: string; request: any }> {
+  async sendMentorshipRequest(mentorId: string, message: string): Promise<{ message: string; request: any; reputation?: ReputationAwardResult }> {
     const response = await fetch(`${API_BASE_URL}/mentor-list/request`, {
       method: 'POST',
       headers: this.getHeaders(true),
@@ -618,6 +645,20 @@ class AuthAPI {
       throw new Error(error.message || 'Failed to get mentor stats');
     }
 
+    return response.json();
+  }
+
+  // Reputation history
+  async getReputationHistory(page = 1, limit = 50): Promise<ReputationHistoryResponse> {
+    const params = new URLSearchParams({ page: String(page), limit: String(limit) });
+    const response = await fetch(`${API_BASE_URL}/reputation/history?${params.toString()}`, {
+      method: 'GET',
+      headers: this.getHeaders(true),
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.message || 'Failed to fetch reputation history');
+    }
     return response.json();
   }
 
@@ -671,6 +712,7 @@ class AuthAPI {
         email: string;
         avatarUrl?: string;
       };
+      reputation?: ReputationAwardResult;
     };
   }> {
     const response = await fetch(`${API_BASE_URL}/mentee-request/accept/${requestId}`, {

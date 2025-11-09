@@ -1,6 +1,7 @@
 import express from 'express';
 import jwt from 'jsonwebtoken';
 import { prisma } from '../../lib/prisma';
+import { awardReputation } from '../../lib/reputation';
 
 const router = express.Router();
 
@@ -102,7 +103,14 @@ router.post('/articles/:articleId', authenticateToken, async (req: any, res: any
     const userId = req.user.userId as number;
     const articleId = Number(req.params.articleId);
     if (!articleId || Number.isNaN(articleId)) return res.status(400).json({ message: 'Invalid article id' });
+    const existed = await prisma.articleBookmark.findUnique({ where: { userId_articleId: { userId, articleId } } });
     const bookmark = await ensureArticleBookmark(userId, articleId);
+    if (!existed) {
+      const article = await prisma.article.findUnique({ where: { id: articleId }, select: { authorId: true } });
+      if (article && article.authorId !== userId) {
+        await awardReputation(prisma as any, { userId: article.authorId, action: 'article_bookmarked', entityType: 'article', entityId: articleId });
+      }
+    }
     res.json({ message: 'Bookmarked', bookmark });
   } catch (err: any) {
     const status = err?.status || 500;
@@ -115,7 +123,14 @@ router.delete('/articles/:articleId', authenticateToken, async (req: any, res: a
     const userId = req.user.userId as number;
     const articleId = Number(req.params.articleId);
     if (!articleId || Number.isNaN(articleId)) return res.status(400).json({ message: 'Invalid article id' });
+    const existed = await prisma.articleBookmark.findUnique({ where: { userId_articleId: { userId, articleId } } });
     await removeArticleBookmark(userId, articleId);
+    if (existed) {
+      const article = await prisma.article.findUnique({ where: { id: articleId }, select: { authorId: true } });
+      if (article && article.authorId !== userId) {
+        await awardReputation(prisma as any, { userId: article.authorId, action: 'article_bookmarked', overridePoints: -10, entityType: 'article', entityId: articleId, bypassCap: true, customDescription: 'Bookmark removed' });
+      }
+    }
     res.json({ message: 'Removed' });
   } catch (err: any) {
     res.status(500).json({ message: 'Failed to remove bookmark' });
@@ -128,7 +143,14 @@ router.post('/community-posts/:postId', authenticateToken, async (req: any, res:
     const userId = req.user.userId as number;
     const postId = Number(req.params.postId);
     if (!postId || Number.isNaN(postId)) return res.status(400).json({ message: 'Invalid post id' });
+    const existed = await prisma.communityPostBookmark.findUnique({ where: { userId_communityPostId: { userId, communityPostId: postId } } });
     const bookmark = await ensureCommunityPostBookmark(userId, postId);
+    if (!existed) {
+      const post = await prisma.communityPost.findUnique({ where: { id: postId }, select: { authorId: true } });
+      if (post && post.authorId !== userId) {
+        await awardReputation(prisma as any, { userId: post.authorId, action: 'community_post_bookmarked', entityType: 'community_post', entityId: postId });
+      }
+    }
     res.json({ message: 'Bookmarked', bookmark });
   } catch (err: any) {
     const status = err?.status || 500;
@@ -141,7 +163,14 @@ router.delete('/community-posts/:postId', authenticateToken, async (req: any, re
     const userId = req.user.userId as number;
     const postId = Number(req.params.postId);
     if (!postId || Number.isNaN(postId)) return res.status(400).json({ message: 'Invalid post id' });
+    const existed = await prisma.communityPostBookmark.findUnique({ where: { userId_communityPostId: { userId, communityPostId: postId } } });
     await removeCommunityPostBookmark(userId, postId);
+    if (existed) {
+      const post = await prisma.communityPost.findUnique({ where: { id: postId }, select: { authorId: true } });
+      if (post && post.authorId !== userId) {
+        await awardReputation(prisma as any, { userId: post.authorId, action: 'community_post_bookmarked', overridePoints: -10, entityType: 'community_post', entityId: postId, bypassCap: true, customDescription: 'Bookmark removed' });
+      }
+    }
     res.json({ message: 'Removed' });
   } catch (err: any) {
     res.status(500).json({ message: 'Failed to remove bookmark' });

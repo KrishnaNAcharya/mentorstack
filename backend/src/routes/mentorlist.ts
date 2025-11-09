@@ -1,14 +1,14 @@
 import express from 'express';
 import jwt from 'jsonwebtoken';
 import { prisma } from '../../lib/prisma';
+import { awardReputation } from '../../lib/reputation';
 import { Role, MentorshipStatus } from '@prisma/client';
 
 const router = express.Router();
 
 // Middleware to verify JWT token
 const authenticateToken = (req: any, res: any, next: any) => {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
+    const token = req.headers['authorization']?.split(' ')[1];
 
     if (!token) {
         return res.status(401).json({ message: 'Access token required' });
@@ -156,7 +156,7 @@ router.post('/request', authenticateToken, async (req: any, res: any) => {
         // Check if mentor exists and is actually a mentor
         const mentor = await prisma.user.findFirst({
             where: {
-                id: parseInt(mentorId),
+                id: Number.parseInt(mentorId),
                 role: Role.mentor
             }
         });
@@ -169,7 +169,7 @@ router.post('/request', authenticateToken, async (req: any, res: any) => {
         const existingRequest = await prisma.mentorshipRequest.findUnique({
             where: {
                 mentorUserId_menteeUserId: {
-                    mentorUserId: parseInt(mentorId),
+                    mentorUserId: Number.parseInt(mentorId),
                     menteeUserId: currentUserId
                 }
             }
@@ -181,29 +181,41 @@ router.post('/request', authenticateToken, async (req: any, res: any) => {
             });
         }
 
-        // Create the mentorship request
-        const request = await prisma.mentorshipRequest.create({
-            data: {
-                mentorUserId: parseInt(mentorId),
-                menteeUserId: currentUserId,
-                status: MentorshipStatus.pending,
-                requestMessage: message
-            },
-            include: {
-                mentor: {
-                    select: {
-                        id: true,
-                        name: true,
-                        email: true,
-                        bio: true,
-                        avatarUrl: true,
-                        skills: true,
-                        location: true,
-                        jobTitle: true,
-                        department: true
+        // Create the mentorship request and award reputation in a transaction
+        const { request, rep } = await prisma.$transaction(async (tx) => {
+            const request = await tx.mentorshipRequest.create({
+                data: {
+                    mentorUserId: Number.parseInt(mentorId),
+                    menteeUserId: currentUserId,
+                    status: MentorshipStatus.pending,
+                    requestMessage: message
+                },
+                include: {
+                    mentor: {
+                        select: {
+                            id: true,
+                            name: true,
+                            email: true,
+                            bio: true,
+                            avatarUrl: true,
+                            skills: true,
+                            location: true,
+                            jobTitle: true,
+                            department: true
+                        }
                     }
                 }
-            }
+            });
+
+            const rep = await awardReputation(tx as any, {
+                userId: currentUserId,
+                action: 'mentorship_request_sent',
+                entityType: 'mentorship_request',
+                entityId: request.id,
+                customDescription: 'Taking initiative'
+            });
+
+            return { request, rep };
         });
 
         res.status(201).json({
@@ -214,7 +226,8 @@ router.post('/request', authenticateToken, async (req: any, res: any) => {
                 requestMessage: request.requestMessage,
                 requestDate: request.createdAt,
                 requestId: request.id
-            }
+            },
+            reputation: rep
         });
     } catch (error) {
         console.error('Error sending mentorship request:', error);
@@ -232,7 +245,7 @@ router.delete('/request/:mentorId', authenticateToken, async (req: any, res: any
         const request = await prisma.mentorshipRequest.findUnique({
             where: {
                 mentorUserId_menteeUserId: {
-                    mentorUserId: parseInt(mentorId),
+                    mentorUserId: Number.parseInt(mentorId),
                     menteeUserId: currentUserId
                 }
             }
@@ -253,7 +266,7 @@ router.delete('/request/:mentorId', authenticateToken, async (req: any, res: any
         await prisma.mentorshipRequest.delete({
             where: {
                 mentorUserId_menteeUserId: {
-                    mentorUserId: parseInt(mentorId),
+                    mentorUserId: Number.parseInt(mentorId),
                     menteeUserId: currentUserId
                 }
             }
@@ -273,7 +286,7 @@ router.get('/mentor/:id/stats', authenticateToken, async (req: any, res: any) =>
 
         const mentor = await prisma.user.findFirst({
             where: {
-                id: parseInt(id),
+                id: Number.parseInt(id),
                 role: Role.mentor
             },
             include: {

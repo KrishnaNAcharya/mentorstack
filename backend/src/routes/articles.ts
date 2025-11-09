@@ -2,6 +2,7 @@ import express from 'express';
 import jwt from 'jsonwebtoken';
 import multer from 'multer';
 import { prisma } from '../../lib/prisma';
+import { awardReputation } from '../../lib/reputation';
 import { Role } from '@prisma/client';
 import { articleImageStorage, deleteImage, extractPublicId } from '../../lib/cloudinary';
 
@@ -276,24 +277,29 @@ router.post('/', authenticateToken, upload.array('images', 5), async (req: any, 
       }
     }
 
-    // Create the article
-    const article = await prisma.article.create({
-      data: {
-        title: title.trim(),
-        content: content.trim(),
-        authorId: userId,
-        authorRole: userRole as Role,
-        imageUrls: imageUrls
-      },
-      include: {
-        author: {
-          select: {
-            name: true,
-            bio: true,
-            avatarUrl: true
+    // Create the article and award reputation to author
+    const article = await prisma.$transaction(async (tx) => {
+      const created = await tx.article.create({
+        data: {
+          title: title.trim(),
+          content: content.trim(),
+          authorId: userId,
+          authorRole: userRole as Role,
+          imageUrls: imageUrls
+        },
+        include: {
+          author: {
+            select: {
+              name: true,
+              bio: true,
+              avatarUrl: true
+            }
           }
         }
-      }
+      });
+      // Award reputation for publishing
+      await awardReputation(tx as any, { userId, action: 'article_published', entityType: 'article', entityId: created.id });
+      return created;
     });
 
     // Create tags if they don't exist and link them to the article
@@ -344,7 +350,7 @@ router.post('/', authenticateToken, upload.array('images', 5), async (req: any, 
   }
 });
 
-// Vote on an article
+// Vote on an article (adjust reputation of the ARTICLE AUTHOR when net vote changes)
 router.post('/:id/vote', authenticateToken, async (req: any, res: any) => {
   try {
     const articleId = parseInt(req.params.id);
@@ -374,30 +380,42 @@ router.post('/:id/vote', authenticateToken, async (req: any, res: any) => {
       }
     });
 
+    const authorId = article.authorId;
+
     if (existingVote) {
-      // If user clicks the same vote type again, remove the vote (toggle off)
       if (existingVote.voteType === voteType) {
-        await prisma.articleVote.delete({
-          where: { id: existingVote.id }
+        // Toggle off -> reverse previous reputation impact
+        await prisma.$transaction(async (tx) => {
+          await tx.articleVote.delete({ where: { id: existingVote.id } });
+          // Reverse: if previous was upvote subtract 5, if downvote add 2
+          if (existingVote.voteType === 'upvote') {
+            await awardReputation(tx as any, { userId: authorId, action: 'article_upvoted', overridePoints: -5, entityType: 'article', entityId: articleId, bypassCap: true, customDescription: 'Upvote removed' });
+          } else {
+            await awardReputation(tx as any, { userId: authorId, action: 'article_downvoted', overridePoints: 2, entityType: 'article', entityId: articleId, bypassCap: true, customDescription: 'Downvote removed' });
+          }
         });
         return res.json({ message: 'Vote removed successfully' });
       } else {
-        // Otherwise update the existing vote to the new type
-        await prisma.articleVote.update({
-          where: { id: existingVote.id },
-          data: { voteType: voteType as any }
+        // Switching vote: apply delta (up->down: -5 then -2 = -7 total; we implement as -7) (down->up: +2 then +5 = +7)
+        const delta = existingVote.voteType === 'upvote' ? -7 : 7;
+        await prisma.$transaction(async (tx) => {
+          await tx.articleVote.update({ where: { id: existingVote.id }, data: { voteType: voteType as any } });
+          await awardReputation(tx as any, { userId: authorId, action: voteType === 'upvote' ? 'article_upvoted' : 'article_downvoted', overridePoints: delta, entityType: 'article', entityId: articleId, bypassCap: true, customDescription: 'Vote switched' });
         });
         return res.json({ message: 'Vote updated successfully' });
       }
     }
 
-    // Create new vote
-    await prisma.articleVote.create({
-      data: {
-        voterId: userId,
-        articleId: articleId,
-        voteType: voteType as 'upvote' | 'downvote'
-      }
+    // New vote
+    await prisma.$transaction(async (tx) => {
+      await tx.articleVote.create({
+        data: {
+          voterId: userId,
+          articleId: articleId,
+          voteType: voteType as 'upvote' | 'downvote'
+        }
+      });
+      await awardReputation(tx as any, { userId: authorId, action: voteType === 'upvote' ? 'article_upvoted' : 'article_downvoted', entityType: 'article', entityId: articleId });
     });
 
     res.json({ message: 'Vote recorded successfully' });

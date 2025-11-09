@@ -86,7 +86,11 @@ const MentorsPage: React.FC = () => {
             // Close modal and reset
             setConnectingMentor(null);
             setRequestMessage("");
-            alert(result.message || 'Request sent successfully!');
+            if (result.reputation?.applied) {
+                alert(`${result.message} (+${result.reputation.appliedPoints} reputation, total ${result.reputation.currentReputation})`);
+            } else {
+                alert(result.message || 'Request sent successfully!');
+            }
         } catch (error: any) {
             console.error('Error sending request:', error);
             alert(error.message || 'Failed to send request. Please try again.');

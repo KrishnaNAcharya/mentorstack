@@ -357,6 +357,7 @@ export default function ContentAdminPage() {
                   <div className="flex items-center justify-center py-12">
                     <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-emerald-500" />
                   </div>
+                  
                 )}
                 {detailsError && (
                   <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-700">{detailsError}</div>

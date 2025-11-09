@@ -2,6 +2,7 @@ import express, { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import multer from 'multer';
 import { prisma } from '../../lib/prisma';
+import { awardReputation } from '../../lib/reputation';
 import { Role } from '@prisma/client';
 import { postImageStorage, deleteImage, extractPublicId } from '../../lib/cloudinary';
 
@@ -247,22 +248,24 @@ router.post('/', authenticateToken, async (req: any, res: any) => {
       return res.status(400).json({ error: 'Community name already exists' });
     }
 
-    const community = await prisma.community.create({
-      data: {
-        name,
-        description: description || '',
-        skills: skills || [],
-        createdById: userId
-      }
-    });
-
-    // Add creator as first member
-    await prisma.communityMember.create({
-      data: {
-        communityId: community.id,
-        userRole: role as any,
-        userId: userId
-      }
+    const community = await prisma.$transaction(async (tx) => {
+      const created = await tx.community.create({
+        data: {
+          name,
+          description: description || '',
+          skills: skills || [],
+          createdById: userId
+        }
+      });
+      await tx.communityMember.create({
+        data: {
+          communityId: created.id,
+          userRole: role as any,
+          userId: userId
+        }
+      });
+      await awardReputation(tx as any, { userId, action: 'community_created', entityType: 'community', entityId: created.id });
+      return created;
     });
 
     res.status(201).json(community);
@@ -384,12 +387,16 @@ router.post('/:id/join', authenticateToken, async (req: any, res: any) => {
       return res.status(400).json({ error: 'Already a member of this community' });
     }
 
-    const member = await prisma.communityMember.create({
-      data: {
-        communityId: parseInt(id),
-        userRole: role as any,
-        userId: userId
-      }
+    const member = await prisma.$transaction(async (tx) => {
+      const createdMember = await tx.communityMember.create({
+        data: {
+          communityId: parseInt(id),
+          userRole: role as any,
+          userId: userId
+        }
+      });
+      await awardReputation(tx as any, { userId, action: 'community_joined', entityType: 'community', entityId: parseInt(id) });
+      return createdMember;
     });
 
     res.status(201).json({ message: 'Successfully joined community', member });
@@ -464,15 +471,19 @@ router.post('/:id/posts', authenticateToken, upload.array('images', 5), async (r
       }
     }
 
-    const post = await prisma.communityPost.create({
-      data: {
-        communityId: parseInt(id),
-        authorId: userId,
-        authorRole: role as Role,
-        title,
-        content,
-        imageUrls: imageUrls
-      }
+    const post = await prisma.$transaction(async (tx) => {
+      const created = await tx.communityPost.create({
+        data: {
+          communityId: parseInt(id),
+          authorId: userId,
+          authorRole: role as Role,
+          title,
+          content,
+          imageUrls: imageUrls
+        }
+      });
+      await awardReputation(tx as any, { userId, action: 'community_post_created', entityType: 'community_post', entityId: created.id });
+      return created;
     });
 
     // Handle tags if provided
@@ -846,83 +857,58 @@ router.post('/:communityId/posts/:postId/vote', authenticateToken, async (req: a
 
     const postIdNum = parseInt(postId);
 
+    const post = await prisma.communityPost.findUnique({ where: { id: postIdNum }, select: { authorId: true } });
+    if (!post) return res.status(404).json({ error: 'Post not found' });
+    const authorId = post.authorId;
+
     if (existingVote) {
-      // If user clicks the same vote type, remove the vote
       if (existingVote.voteType === voteType) {
-        // Remove vote and update counters
-        await prisma.communityPostVote.delete({
-          where: { id: existingVote.id }
+        // Toggle off
+        await prisma.$transaction(async (tx) => {
+          await tx.communityPostVote.delete({ where: { id: existingVote.id } });
+          if (existingVote.voteType === 'upvote') {
+            await tx.communityPost.update({ where: { id: postIdNum }, data: { upvotes: { decrement: 1 } } });
+            await awardReputation(tx as any, { userId: authorId, action: 'community_post_upvoted', overridePoints: -5, entityType: 'community_post', entityId: postIdNum, bypassCap: true, customDescription: 'Upvote removed' });
+          } else {
+            await tx.communityPost.update({ where: { id: postIdNum }, data: { downvotes: { decrement: 1 } } });
+            await awardReputation(tx as any, { userId: authorId, action: 'community_post_downvoted', overridePoints: 2, entityType: 'community_post', entityId: postIdNum, bypassCap: true, customDescription: 'Downvote removed' });
+          }
         });
-
-        // Decrement the appropriate counter
-        if (existingVote.voteType === 'upvote') {
-          await prisma.communityPost.update({
-            where: { id: postIdNum },
-            data: { upvotes: { decrement: 1 } }
-          });
-        } else {
-          await prisma.communityPost.update({
-            where: { id: postIdNum },
-            data: { downvotes: { decrement: 1 } }
-          });
-        }
-
-        res.json({ message: 'Vote removed successfully' });
+        return res.json({ message: 'Vote removed successfully' });
       } else {
-        // Update existing vote to new type
-        await prisma.communityPostVote.update({
-          where: { id: existingVote.id },
-          data: { voteType: voteType as any }
+        // Switch vote (up->down = -7, down->up = +7)
+        const delta = existingVote.voteType === 'upvote' ? -7 : 7;
+        await prisma.$transaction(async (tx) => {
+          await tx.communityPostVote.update({ where: { id: existingVote.id }, data: { voteType: voteType as any } });
+          if (existingVote.voteType === 'upvote') {
+            await tx.communityPost.update({ where: { id: postIdNum }, data: { upvotes: { decrement: 1 }, downvotes: { increment: 1 } } });
+          } else {
+            await tx.communityPost.update({ where: { id: postIdNum }, data: { downvotes: { decrement: 1 }, upvotes: { increment: 1 } } });
+          }
+          await awardReputation(tx as any, { userId: authorId, action: voteType === 'upvote' ? 'community_post_upvoted' : 'community_post_downvoted', overridePoints: delta, entityType: 'community_post', entityId: postIdNum, bypassCap: true, customDescription: 'Vote switched' });
         });
-
-        // Update counters: decrement old, increment new
-        if (existingVote.voteType === 'upvote') {
-          // Was upvote, now downvote
-          await prisma.communityPost.update({
-            where: { id: postIdNum },
-            data: { 
-              upvotes: { decrement: 1 },
-              downvotes: { increment: 1 }
-            }
-          });
-        } else {
-          // Was downvote, now upvote
-          await prisma.communityPost.update({
-            where: { id: postIdNum },
-            data: { 
-              downvotes: { decrement: 1 },
-              upvotes: { increment: 1 }
-            }
-          });
-        }
-
-        res.json({ message: 'Vote updated successfully' });
+        return res.json({ message: 'Vote updated successfully' });
       }
-    } else {
-      // Create new vote
-      await prisma.communityPostVote.create({
+    }
+
+    // New vote
+    await prisma.$transaction(async (tx) => {
+      await tx.communityPostVote.create({
         data: {
           userId: userId,
           postId: postIdNum,
           voteType: voteType as any
         }
       });
-
-      // Increment the appropriate counter
       if (voteType === 'upvote') {
-        await prisma.communityPost.update({
-          where: { id: postIdNum },
-          data: { upvotes: { increment: 1 } }
-        });
+        await tx.communityPost.update({ where: { id: postIdNum }, data: { upvotes: { increment: 1 } } });
       } else {
-        await prisma.communityPost.update({
-          where: { id: postIdNum },
-          data: { downvotes: { increment: 1 } }
-        });
+        await tx.communityPost.update({ where: { id: postIdNum }, data: { downvotes: { increment: 1 } } });
       }
+      await awardReputation(tx as any, { userId: authorId, action: voteType === 'upvote' ? 'community_post_upvoted' : 'community_post_downvoted', entityType: 'community_post', entityId: postIdNum });
+    });
 
-      res.json({ message: 'Vote recorded successfully' });
-    }
+    res.json({ message: 'Vote recorded successfully' });
   } catch (error) {
     console.error('Error voting on post:', error);
     res.status(500).json({ error: 'Failed to vote on post' });
