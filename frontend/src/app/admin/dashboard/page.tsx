@@ -25,8 +25,6 @@ export default function AdminDashboard() {
   const [communitiesData, setCommunitiesData] = useState<any>(null);
   // Advanced analytics state
   const [mentorImpact, setMentorImpact] = useState<any[] | null>(null);
-  // Mentee progress state removed with radar chart removal
-  // maxima from mentee progress not currently displayed; omit separate state to avoid unused variable
 
   useEffect(() => {
     const loadStats = async () => {
@@ -47,11 +45,6 @@ export default function AdminDashboard() {
         const mi = await adminAPI.getMentorImpact(15);
         setMentorImpact(mi.mentors);
   } catch (e) { console.warn('Failed to preload mentor impact', e); }
-      // Mentee progress radar removed per request; skip preloading
-      // try {
-      //   const mp = await adminAPI.getMenteeProgress(15);
-      //   setMenteeProgress(mp.mentees);
-      // } catch (e) { console.warn('Failed to preload mentee progress', e); }
     })();
   }, []);
 
@@ -130,7 +123,6 @@ export default function AdminDashboard() {
   return (
     <AdminLayout>
       <div className="min-h-screen bg-gray-50">
-        {/* Welcome Header */}
         <div className="bg-gradient-to-r from-teal-500 to-teal-600 text-white rounded-lg p-8 mb-8">
           <div className="flex items-center justify-between">
             <div>
@@ -228,7 +220,6 @@ export default function AdminDashboard() {
 
           {/* Bottom Sections */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* User Distribution */}
           <div className="bg-white rounded-xl p-6 shadow-lg">
             <div className="flex items-center space-x-3 mb-6">
               <span className="text-2xl">🎯</span>
@@ -305,13 +296,8 @@ export default function AdminDashboard() {
               </div>
             </div>
           </div>
-
-          {/* Removed Platform Health per request */}
         </div>
-
-        {/* Advanced Analytics Row (Radar removed) */}
         <div className="mt-10 grid grid-cols-1 xl:grid-cols-1 gap-8">
-          {/* Mentor Impact Board */}
           <div className="bg-white rounded-xl p-6 shadow-lg">
             <div className="flex items-center space-x-3 mb-6">
               <Gauge className="w-6 h-6 text-teal-600" />
@@ -350,12 +336,8 @@ export default function AdminDashboard() {
               </table>
             </div>
           </div>
-
-          {/* Mentee Learning Progress Radar removed per request */}
         </div>
       </div>
-
-      {/* Modal System */}
       <AdminModals
         isUsersModalOpen={showUsersModal}
         setIsUsersModalOpen={setShowUsersModal}
