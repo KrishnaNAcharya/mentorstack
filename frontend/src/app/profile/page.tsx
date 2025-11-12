@@ -6,7 +6,6 @@ import Link from "next/link";
 import Layout from "../../components/Layout";
 import AvatarUpload from "../../components/AvatarUpload";
 import { authAPI, MenteeProfile, MentorProfile } from "@/lib/auth-api";
-
 type BookmarkTab = 'Questions' | 'Articles' | 'Community Posts';
 
 type Rule = { action: string; points: number; reason: string };
@@ -1174,9 +1173,9 @@ export default function ProfilePage() {
             }}
           >
             <h3 className="text-lg font-semibold mb-4" style={{ color: 'var(--color-tertiary)' }}>📋 Personal Details</h3>
-            {/* Reputation Highlight */}
+            {/* Reputation Highlight (compact/clean) */}
             <div
-              className="relative overflow-hidden rounded-xl p-4 border mb-5 transition-all duration-300 hover:scale-[1.02] hover:shadow-lg"
+              className="relative overflow-hidden rounded-xl p-2 w-min border mb-4 transition-all duration-300 hover:scale-[1.01] hover:shadow-md"
               style={{
                 background: 'linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%)',
                 borderColor: 'var(--color-primary)'
@@ -1185,35 +1184,21 @@ export default function ProfilePage() {
             >
               <div className="flex items-center gap-4">
                 <div
-                  className="w-12 h-12 rounded-full flex items-center justify-center shrink-0"
+                  className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
                   style={{ backgroundColor: 'rgba(255,255,255,0.15)' }}
                   aria-hidden
                 >
-                  <span className="text-2xl">🏆</span>
+                  <span className="text-xl">🏆</span>
                 </div>
                 <div className="flex-1">
                   <div className="text-xs uppercase tracking-wide" style={{ color: 'var(--color-neutral)', opacity: 0.9 }}>Reputation</div>
-                  <div className="text-3xl font-extrabold leading-snug" style={{ color: 'var(--color-neutral)' }}>{profile.reputation}</div>
+                  <div className="text-2xl font-extrabold leading-snug" style={{ color: 'var(--color-neutral)' }}>{profile.reputation}</div>
                 </div>
               </div>
             </div>
 
             <div className="space-y-4">
-              <div aria-label="Email">
-                <div className="block text-sm font-medium mb-1" style={{ color: 'var(--color-tertiary-light)' }}>Email</div>
-                <p style={{ color: 'var(--color-tertiary)' }}>{profile.email}</p>
-              </div>
-
-              <div aria-label="Joined">
-                <div className="block text-sm font-medium mb-1" style={{ color: 'var(--color-tertiary-light)' }}>Joined</div>
-                <p style={{ color: 'var(--color-tertiary)' }}>{new Date(profile.joinedDate).toLocaleDateString('en-US', {
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric'
-                })}</p>
-              </div>
-
-              {/* Badges - Below Reputation */}
+              {/* Badges - placed above Email */}
               {badges && badges.badges && badges.badges.filter((b: any) => b.isEarned).length > 0 && (
                 <div aria-label="Badges">
                   <div className="flex items-center justify-between mb-2">
@@ -1268,6 +1253,20 @@ export default function ProfilePage() {
                   </div>
                 </div>
               )}
+
+              <div aria-label="Email">
+                <div className="block text-sm font-medium mb-1" style={{ color: 'var(--color-tertiary-light)' }}>Email</div>
+                <p style={{ color: 'var(--color-tertiary)' }}>{profile.email}</p>
+              </div>
+
+              <div aria-label="Joined">
+                <div className="block text-sm font-medium mb-1" style={{ color: 'var(--color-tertiary-light)' }}>Joined</div>
+                <p style={{ color: 'var(--color-tertiary)' }}>{new Date(profile.joinedDate).toLocaleDateString('en-US', {
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric'
+                })}</p>
+              </div>
             </div>
           </div>
 
@@ -1348,25 +1347,22 @@ export default function ProfilePage() {
                 </button>
               </div>
             ) : (
-              <div className="space-y-2">
+              <div className="flex flex-wrap gap-2">
                 {((userRole === 'mentee' ? menteeProfile?.skills : mentorProfile?.skills) || []).map((skill, index) => (
-                  <div
+                  <span
                     key={skill || `skill-${index}`}
-                    className="w-full h-6 rounded-full animate-fadeInUp"
+                    className="px-3 py-1 rounded-full text-xs font-medium animate-fadeInUp"
                     style={{
-                      backgroundColor: 'var(--color-surface)',
-                      animationDelay: `${index * 0.05}s`
+                      backgroundColor: 'var(--color-surface-light)',
+                      borderWidth: '1px',
+                      borderStyle: 'solid',
+                      borderColor: 'var(--color-surface-dark)',
+                      color: 'var(--color-tertiary)',
+                      animationDelay: `${index * 0.04}s`
                     }}
                   >
-                    <div
-                      className="h-full rounded-full flex items-center px-3"
-                      style={{
-                        background: 'linear-gradient(to right, var(--color-primary), var(--color-secondary))'
-                      }}
-                    >
-                      <span className="text-xs font-medium" style={{ color: 'var(--color-neutral)' }}>{skill}</span>
-                    </div>
-                  </div>
+                    {skill}
+                  </span>
                 ))}
               </div>
             )}

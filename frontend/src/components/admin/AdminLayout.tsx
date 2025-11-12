@@ -15,7 +15,9 @@ import {
   BarChart3,
   Hash,
   Handshake,
-  MessagesSquare
+  MessagesSquare,
+  Award,
+  TrendingUp
 } from "lucide-react";
 
 interface AdminLayoutProps {
@@ -60,6 +62,8 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     { name: 'Communities', href: '/admin/communities', icon: MessagesSquare },
     { name: 'Articles', href: '/admin/article', icon: BookImage },
     { name: 'Tags', href: '/admin/tags', icon: Hash },
+    { name: 'Badges', href: '/admin/badges', icon: Award },
+    { name: 'Reputation', href: '/admin/reputation', icon: TrendingUp },
     { name: 'Settings', href: '/admin/settings', icon: Settings },
   ];
 

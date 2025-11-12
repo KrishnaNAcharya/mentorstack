@@ -419,6 +419,116 @@ class AdminAPI {
     return response.json();
   }
 
+  // ==================== Badges Management ====================
+
+  async getBadges(): Promise<{ badges: Array<{ id: number; name: string; description: string; reputationThreshold: number; imageUrl?: string | null; isActive: boolean; createdAt: string; updatedAt: string; awardedCount?: number; }> }> {
+    const response = await fetch(`${ADMIN_API_BASE_URL}/badges`, {
+      headers: this.getHeaders(true),
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to fetch badges');
+    }
+    return response.json();
+  }
+
+  async createBadge(data: { name: string; description: string; reputationThreshold: number; imageUrl?: string | null; isActive?: boolean; }): Promise<{ message: string; badge: any }> {
+    const response = await fetch(`${ADMIN_API_BASE_URL}/badges`, {
+      method: 'POST',
+      headers: this.getHeaders(true),
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to create badge');
+    }
+    return response.json();
+  }
+
+  async updateBadge(id: number, data: { name?: string; description?: string; reputationThreshold?: number; imageUrl?: string | null; isActive?: boolean; }): Promise<{ message: string; badge: any }> {
+    const response = await fetch(`${ADMIN_API_BASE_URL}/badges/${id}`, {
+      method: 'PUT',
+      headers: this.getHeaders(true),
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to update badge');
+    }
+    return response.json();
+  }
+
+  async toggleBadgeActive(id: number): Promise<{ message: string; badge: any }> {
+    const response = await fetch(`${ADMIN_API_BASE_URL}/badges/${id}/toggle`, {
+      method: 'PATCH',
+      headers: this.getHeaders(true),
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to toggle badge');
+    }
+    return response.json();
+  }
+
+  async awardBadge(id: number, userId: number): Promise<{ message: string; userBadge: any }> {
+    const response = await fetch(`${ADMIN_API_BASE_URL}/badges/${id}/award`, {
+      method: 'POST',
+      headers: this.getHeaders(true),
+      body: JSON.stringify({ userId }),
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to award badge');
+    }
+    return response.json();
+  }
+
+  async uploadBadgeIcon(file: File): Promise<{ imageUrl: string }> {
+    const form = new FormData();
+    form.append('image', file);
+    // Manually construct headers to include auth but let browser set Content-Type boundary
+    const headers: HeadersInit = {};
+    const token = this.getToken();
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const response = await fetch(`${ADMIN_API_BASE_URL}/badges/upload-icon`, {
+      method: 'POST',
+      headers,
+      body: form,
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to upload badge icon');
+    }
+    return response.json();
+  }
+
+  // ==================== Reputation Management ====================
+
+  async getReputationHistory(userId: number, page = 1, limit = 20): Promise<{ user: any; page: number; limit: number; total: number; items: any[] }> {
+    const params = new URLSearchParams({ userId: String(userId), page: String(page), limit: String(limit) });
+    const response = await fetch(`${ADMIN_API_BASE_URL}/reputation/history?${params}`, {
+      headers: this.getHeaders(true),
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to fetch reputation history');
+    }
+    return response.json();
+  }
+
+  async adjustReputation(data: { userId: number; points: number; reason?: string; entityType?: string; entityId?: number; }): Promise<{ message: string; history: any; user: any }> {
+    const response = await fetch(`${ADMIN_API_BASE_URL}/reputation/adjust`, {
+      method: 'POST',
+      headers: this.getHeaders(true),
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to adjust reputation');
+    }
+    return response.json();
+  }
+
   // ==================== User Management ====================
   
   async getUsers(page = 1, limit = 20, role?: string, search?: string): Promise<{
