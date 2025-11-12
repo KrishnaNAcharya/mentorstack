@@ -232,7 +232,7 @@ export default function AdminMentorshipPage() {
                             <div className="flex items-center justify-between">
                                 <div>
                                     <p className="text-sm font-medium text-gray-600 mb-1">Total Connections</p>
-                                    <p className="text-3xl font-bold text-teal-600">{stats.connections.total}</p>
+                                    <p className="text-3xl font-bold text-black">{stats.connections.total}</p>
                                     <p className="text-xs text-gray-500 mt-1">{stats.connections.active} active conversations</p>
                                 </div>
                                 <div className="w-12 h-12 bg-teal-100 rounded-lg flex items-center justify-center">
@@ -245,7 +245,7 @@ export default function AdminMentorshipPage() {
                             <div className="flex items-center justify-between">
                                 <div>
                                     <p className="text-sm font-medium text-gray-600 mb-1">Pending Requests</p>
-                                    <p className="text-3xl font-bold text-yellow-600">{stats.requests.pending}</p>
+                                    <p className="text-3xl font-bold text-black">{stats.requests.pending}</p>
                                     <p className="text-xs text-gray-500 mt-1">of {stats.requests.total} total</p>
                                 </div>
                                 <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
@@ -258,7 +258,7 @@ export default function AdminMentorshipPage() {
                             <div className="flex items-center justify-between">
                                 <div>
                                     <p className="text-sm font-medium text-gray-600 mb-1">Acceptance Rate</p>
-                                    <p className="text-3xl font-bold text-green-600">{stats.requests.acceptanceRate}%</p>
+                                    <p className="text-3xl font-bold text-black">{stats.requests.acceptanceRate}%</p>
                                     <p className="text-xs text-gray-500 mt-1">{stats.requests.accepted} accepted</p>
                                 </div>
                                 <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
@@ -271,7 +271,7 @@ export default function AdminMentorshipPage() {
                             <div className="flex items-center justify-between">
                                 <div>
                                     <p className="text-sm font-medium text-gray-600 mb-1">Total Messages</p>
-                                    <p className="text-3xl font-bold text-blue-600">{stats.messages.total}</p>
+                                    <p className="text-3xl font-bold text-black">{stats.messages.total}</p>
                                     <p className="text-xs text-gray-500 mt-1">{stats.connections.avgMessagesPerConnection} avg/connection</p>
                                 </div>
                                 <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
@@ -665,15 +665,10 @@ export default function AdminMentorshipPage() {
                                             </div>
                                         </div>
 
-                                        {/* Arrow */}
-                                        <div className="hidden lg:flex absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10">
-                                            <ArrowRight className="w-6 h-6 text-gray-400" />
-                                        </div>
-
                                         {/* Mentee Side */}
                                         <div>
                                             <div className="flex items-center gap-2 mb-3">
-                                                <div className="w-12 h-12 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center text-white font-bold text-lg">
+                                                <div className="w-12 h-12 bg-gradient-to-br from-primary to-secondary-dark rounded-full flex items-center justify-center text-white font-bold text-lg">
                                                     {request.mentee.name.charAt(0)}
                                                 </div>
                                                 <div>

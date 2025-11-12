@@ -33,6 +33,7 @@ import aiRouter from './routes/ai';
 import { bookmarksRouter } from './routes/bookmarks';
 import uploadRouter from './routes/upload';
 import { reputationRouter } from './routes/reputation';
+import { badgesRouter } from './routes/badges';
 // Admin routes
 import { adminAuthRouter } from './routes/admin/auth';
 import { adminUsersRouter } from './routes/admin/users';
@@ -77,6 +78,7 @@ app.use('/api/ai', aiRouter);
 app.use('/api/bookmarks', bookmarksRouter);
 app.use('/api/upload', uploadRouter);
 app.use('/api/reputation', reputationRouter);
+app.use('/api/badges', badgesRouter);
 
 // Admin Routes - Protected by requireAdmin middleware
 app.use('/api/admin/auth', adminAuthRouter);

@@ -169,7 +169,7 @@ export default function AvatarUpload({
   const isProcessing = isUploading || isDeleting;
 
   return (
-    <div className="flex flex-col items-center gap-4">
+    <div className="flex flex-col items-center justify-center mt-10 gap-8">
       {/* Avatar Container */}
       <div
         className="relative group"
@@ -194,7 +194,7 @@ export default function AvatarUpload({
           ) : (
             <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-400 to-purple-500 text-white text-3xl font-bold">
               {/* Placeholder with first letter */}
-              <span className="uppercase">U</span>
+              <span className="uppercase"></span>
             </div>
           )}
 
@@ -228,7 +228,7 @@ export default function AvatarUpload({
         )}
       </div>
 
-      {/* Upload Button (Alternative to click) */}
+      {/* Upload Button (Alternative to click)
       {editable && !isProcessing && (
         <button
           onClick={handleClick}
@@ -237,7 +237,7 @@ export default function AvatarUpload({
           <Upload size={16} />
           {avatarUrl ? 'Change Avatar' : 'Upload Avatar'}
         </button>
-      )}
+      )} */}
 
       {/* Hidden File Input */}
       <input
@@ -258,7 +258,7 @@ export default function AvatarUpload({
 
       {/* Upload Info */}
       {editable && !error && (
-        <p className="text-xs text-gray-500 text-center max-w-xs">
+        <p className="text-xs text-gray-400 text-center max-w-xs">
           {isUploading
             ? 'Uploading...'
             : isDeleting

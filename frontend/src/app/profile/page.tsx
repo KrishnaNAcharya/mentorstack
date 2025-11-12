@@ -158,8 +158,11 @@ function TabContent(props: Readonly<{
   reputationHistory: Array<{ id: number; points: number; action: string; description?: string | null; createdAt: string }>;
   repLoading: boolean;
   repError: string | null;
+  badges: any;
+  badgesLoading: boolean;
+  badgesError: string | null;
 }>) {
-  const { activeTab, menteeProfile, mentorProfile, profile, router, bookmarks, bookmarkedSubTab, setBookmarkedSubTab, reputationHistory, repLoading, repError } = props;
+  const { activeTab, menteeProfile, mentorProfile, profile, router, bookmarks, bookmarkedSubTab, setBookmarkedSubTab, reputationHistory, repLoading, repError, badges, badgesLoading, badgesError } = props;
   const [showRepInfo, setShowRepInfo] = useState(false);
   if (!profile) return null;
   const questions = (menteeProfile?.questions || mentorProfile?.questions || []);
@@ -474,6 +477,241 @@ function TabContent(props: Readonly<{
           {showRepInfo && <ReputationInfoModal onClose={() => setShowRepInfo(false)} />}
         </div>
       )}
+
+      {activeTab === "Badges" && (
+        <div className="space-y-6">
+          {/* Header with Help Button */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <h4 className="text-xl font-semibold" style={{ color: 'var(--color-tertiary)' }}>My Badges</h4>
+              <button
+                onClick={() => {
+                  const helpSection = document.getElementById('upcoming-badges-section');
+                  helpSection?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }}
+                className="w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold shadow-sm transition hover:scale-110 focus:outline-none focus:ring-2"
+                style={{
+                  background: 'linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%)',
+                  color: 'var(--color-neutral)'
+                }}
+                aria-label="View upcoming badges"
+                title="View upcoming badges"
+              >
+                ?
+              </button>
+            </div>
+            <div className="text-sm" style={{ color: 'var(--color-tertiary-light)' }}>
+              Earned: <span className="font-semibold" style={{ color: 'var(--color-primary)' }}>
+                {badges?.earnedCount || 0}
+              </span> / {badges?.totalCount || 0}
+            </div>
+          </div>
+
+          {badgesLoading && <div style={{ color: 'var(--color-tertiary-light)' }}>Loading badges...</div>}
+          {badgesError && <div style={{ color: 'var(--color-secondary)' }}>{badgesError}</div>}
+
+          {!badgesLoading && !badgesError && badges?.badges && badges.badges.length > 0 && (
+            <>
+              {/* Earned Badges Section */}
+              {badges.badges.filter((b: any) => b.isEarned).length > 0 && (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <div className="w-1 h-6 rounded-full" style={{ backgroundColor: 'var(--color-primary)' }}></div>
+                    <h5 className="text-lg font-semibold" style={{ color: 'var(--color-tertiary)' }}>
+                      Earned ({badges.badges.filter((b: any) => b.isEarned).length})
+                    </h5>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {badges.badges
+                      .filter((badge: any) => badge.isEarned)
+                      .map((badge: any, index: number) => (
+                        <div
+                          key={badge.id}
+                          className="rounded-xl p-5 border-2 transition-all duration-300 hover:scale-105 hover:shadow-2xl animate-fadeInUp"
+                          style={{
+                            backgroundColor: 'var(--color-surface-light)',
+                            borderColor: 'var(--color-primary)',
+                            boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+                            animationDelay: `${index * 0.1}s`
+                          }}
+                        >
+                          <div className="flex items-start gap-4">
+                            {/* Badge Image with Glow Effect */}
+                            <div className="flex-shrink-0 relative">
+                              <div 
+                                className="absolute inset-0 rounded-full animate-pulse"
+                                style={{
+                                  background: 'radial-gradient(circle, var(--color-primary) 0%, transparent 70%)',
+                                  opacity: 0.3
+                                }}
+                              ></div>
+                              {badge.imageUrl ? (
+                                <div className="relative z-10">
+                                  <img
+                                    src={badge.imageUrl}
+                                    alt={badge.name}
+                                    className="w-20 h-20 rounded-full"
+                                    style={{ 
+                                      border: '4px solid var(--color-primary)',
+                                      boxShadow: '0 0 20px rgba(var(--color-primary-rgb), 0.5)'
+                                    }}
+                                  />
+                                </div>
+                              ) : (
+                                <div
+                                  className="w-20 h-20 rounded-full flex items-center justify-center text-3xl relative z-10"
+                                  style={{ 
+                                    backgroundColor: 'var(--color-primary)',
+                                    color: 'var(--color-neutral)'
+                                  }}
+                                >
+                                  🏆
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Badge Info */}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-2">
+                                <h5 className="font-bold text-lg" style={{ color: 'var(--color-tertiary)' }}>
+                                  {badge.name}
+                                </h5>
+                                <span className="text-xs px-2 py-1 rounded-full font-semibold" style={{
+                                  backgroundColor: 'var(--color-primary)',
+                                  color: 'var(--color-neutral)'
+                                }}>
+                                  ✓ Earned
+                                </span>
+                              </div>
+
+                              <p className="text-sm mb-3 leading-relaxed" style={{ color: 'var(--color-tertiary-light)' }}>
+                                {badge.description}
+                              </p>
+
+                              <div className="flex items-center justify-between text-xs">
+                                <div className="flex items-center gap-2" style={{ color: 'var(--color-tertiary-light)' }}>
+                                  <span className="font-semibold">🎯</span>
+                                  <span>{badge.reputationThreshold} reputation</span>
+                                </div>
+                                {badge.awardedAt && (
+                                  <div style={{ color: 'var(--color-tertiary-light)' }}>
+                                    {new Date(badge.awardedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Upcoming Badges Section */}
+              {badges.badges.filter((b: any) => !b.isEarned).length > 0 && (
+                <div id="upcoming-badges-section" className="space-y-4 pt-4" style={{ borderTop: '1px solid var(--color-surface-dark)' }}>
+                  <div className="flex items-center gap-2">
+                    <div className="w-1 h-6 rounded-full" style={{ backgroundColor: 'var(--color-secondary)' }}></div>
+                    <h5 className="text-lg font-semibold" style={{ color: 'var(--color-tertiary)' }}>
+                      Upcoming Badges ({badges.badges.filter((b: any) => !b.isEarned).length})
+                    </h5>
+                  </div>
+                  <p className="text-sm" style={{ color: 'var(--color-tertiary-light)' }}>
+                    Keep earning reputation to unlock these badges!
+                  </p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {badges.badges
+                      .filter((badge: any) => !badge.isEarned)
+                      .map((badge: any, index: number) => (
+                        <div
+                          key={badge.id}
+                          className="rounded-xl p-5 border-2 transition-all duration-300 hover:scale-102 animate-fadeInUp"
+                          style={{
+                            backgroundColor: 'var(--color-surface)',
+                            borderColor: 'var(--color-surface-dark)',
+                            opacity: 0.85,
+                            animationDelay: `${index * 0.1}s`
+                          }}
+                        >
+                          <div className="flex items-start gap-4">
+                            {/* Badge Image (Grayscale) */}
+                            <div className="flex-shrink-0">
+                              {badge.imageUrl ? (
+                                <img
+                                  src={badge.imageUrl}
+                                  alt={badge.name}
+                                  className="w-16 h-16 rounded-full grayscale opacity-60"
+                                />
+                              ) : (
+                                <div
+                                  className="w-16 h-16 rounded-full flex items-center justify-center text-2xl opacity-60"
+                                  style={{ backgroundColor: 'var(--color-surface-dark)', color: 'var(--color-tertiary-light)' }}
+                                >
+                                  🏆
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Badge Info */}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-2">
+                                <h5 className="font-semibold text-base" style={{ color: 'var(--color-tertiary)' }}>
+                                  {badge.name}
+                                </h5>
+                                <span className="text-xs px-2 py-1 rounded-full" style={{
+                                  backgroundColor: 'var(--color-surface-dark)',
+                                  color: 'var(--color-tertiary-light)'
+                                }}>
+                                  🔒 Locked
+                                </span>
+                              </div>
+
+                              <p className="text-sm mb-3" style={{ color: 'var(--color-tertiary-light)' }}>
+                                {badge.description}
+                              </p>
+
+                              <div className="space-y-2">
+                                <div className="flex items-center justify-between text-xs" style={{ color: 'var(--color-tertiary-light)' }}>
+                                  <span>Required: <span className="font-semibold">{badge.reputationThreshold}</span> reputation</span>
+                                  <span className="font-semibold" style={{ color: 'var(--color-secondary)' }}>
+                                    {badge.progressPercent}%
+                                  </span>
+                                </div>
+                                {/* Progress Bar */}
+                                <div className="w-full h-2 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--color-surface-dark)' }}>
+                                  <div
+                                    className="h-full transition-all duration-500"
+                                    style={{
+                                      width: `${badge.progressPercent}%`,
+                                      background: 'linear-gradient(90deg, var(--color-primary) 0%, var(--color-secondary) 100%)'
+                                    }}
+                                  />
+                                </div>
+                                <div className="text-xs" style={{ color: 'var(--color-tertiary-light)' }}>
+                                  {badge.reputationThreshold - (badges.currentReputation || 0)} more reputation needed
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+
+          {!badgesLoading && !badgesError && badges?.badges && badges.badges.length === 0 && (
+            <div className="text-center py-12 animate-fadeIn">
+              <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style={{ backgroundColor: 'var(--color-surface-light)' }}>
+                <span className="text-2xl">🏆</span>
+              </div>
+              <h3 className="text-xl font-semibold mb-2" style={{ color: 'var(--color-tertiary)' }}>No badges available yet</h3>
+              <p style={{ color: 'var(--color-tertiary-light)' }}>Badges will appear here as you earn reputation!</p>
+            </div>
+          )}
+        </div>
+      )}
     </>
   );
 }
@@ -487,6 +725,9 @@ export default function ProfilePage() {
   const [reputationHistory, setReputationHistory] = useState<Array<{ id: number; points: number; action: string; description?: string | null; createdAt: string }>>([]);
   const [repLoading, setRepLoading] = useState(false);
   const [repError, setRepError] = useState<string | null>(null);
+  const [badges, setBadges] = useState<any>(null);
+  const [badgesLoading, setBadgesLoading] = useState(false);
+  const [badgesError, setBadgesError] = useState<string | null>(null);
   const [bookmarks, setBookmarks] = useState<{
     questions: Array<{ questionId: number; title: string; createdAt: string }>;
     articles: Array<{ articleId: number; title: string; createdAt: string }>;
@@ -558,9 +799,26 @@ export default function ProfilePage() {
     loadReputation();
   }, [activeTab]);
 
+  useEffect(() => {
+    if (activeTab === 'Badges' && !badges && !badgesLoading) {
+      setBadgesLoading(true);
+      setBadgesError(null);
+      authAPI.getAvailableBadges()
+        .then(data => {
+          setBadges(data);
+          setBadgesLoading(false);
+        })
+        .catch(err => {
+          console.error('Error loading badges:', err);
+          setBadgesError('Failed to load badges');
+          setBadgesLoading(false);
+        });
+    }
+  }, [activeTab, badges, badgesLoading]);
+
   const handleSaveProfile = async () => {
     if (!menteeProfile && !mentorProfile) return;
-    
+
     try {
       if (userRole === 'mentee' && menteeProfile) {
         await authAPI.updateMenteeProfile({
@@ -614,7 +872,7 @@ export default function ProfilePage() {
         {/* Main Profile Content */}
         <div className="flex-1">
           {/* Profile Header with gradient and animation */}
-          <div 
+          <div
             className="rounded-2xl shadow-sm border p-8 mb-6 animate-fadeIn hover:shadow-lg transition-all duration-300"
             style={{
               backgroundColor: 'var(--color-neutral)',
@@ -642,139 +900,212 @@ export default function ProfilePage() {
                 size="xl"
                 editable={true}
               />
-              
+
               {/* Profile Info */}
               <div className="flex-1">
-                <div className="flex items-center gap-4 mb-2 animate-slideInRight">
-                  <h1 className="text-3xl font-bold" style={{ color: 'var(--color-tertiary)' }}>{profile.name}</h1>
-                  <span style={{ color: 'var(--color-tertiary-light)' }}>User{profile.id}</span>
-                  <span 
-                    className="px-3 py-1 rounded-full text-sm font-medium transition-all duration-300 hover:scale-105"
-                    style={{
-                      backgroundColor: userRole === 'mentor' ? 'var(--color-surface-light)' : 'var(--color-primary)',
-                      color: userRole === 'mentor' ? 'var(--color-secondary)' : 'var(--color-neutral)'
-                    }}
-                  >
-                    {userRole === 'mentor' ? '🎓 Mentor' : '📚 Mentee'}
-                  </span>
-                  <button 
+                {/* Header with Edit Button */}
+                <div className="flex items-start justify-between mb-4 animate-slideInRight">
+                  <div className="space-y-3">
+                    {/* Name */}
+                    <h1 className="text-4xl font-bold tracking-tight" style={{ color: 'var(--color-tertiary)' }}>
+                      {profile.name}
+                    </h1>
+                    
+                    {/* User ID and Role Badge */}
+                    <div className="flex items-center gap-3">
+                      <span 
+                        className="text-sm font-medium px-3 py-1 rounded-full"
+                        style={{ 
+                          color: 'var(--color-tertiary-light)',
+                          backgroundColor: 'var(--color-surface-light)'
+                        }}
+                      >
+                        @user{profile.id}
+                      </span>
+                      <span
+                        className="px-4 py-1.5 rounded-full text-sm font-semibold transition-all duration-300 hover:scale-105 shadow-sm"
+                        style={{
+                          background: userRole === 'mentor' 
+                            ? 'linear-gradient(135deg, var(--color-secondary) 0%, var(--color-primary) 100%)'
+                            : 'linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%)',
+                          color: 'var(--color-neutral)'
+                        }}
+                      >
+                        {userRole === 'mentor' ? '🎓 Mentor' : '📚 Mentee'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Edit Profile Button */}
+                  <button
                     onClick={() => setIsEditing(!isEditing)}
-                    className="ml-auto p-2 rounded-lg transition-all duration-300 hover:scale-110 hover:rotate-90"
+                    className="flex items-center gap-2 px-2 py-2 rounded-lg transition-all duration-300 hover:scale-105 hover:shadow-lg font-medium"
                     style={{
-                      color: 'var(--color-tertiary-light)',
-                      backgroundColor: 'var(--color-surface-light)'
+                      color: isEditing ? 'var(--color-neutral)' : 'var(--color-tertiary)',
+                      backgroundColor: isEditing ? 'var(--color-primary)' : 'var(--color-surface-light)',
+                      borderWidth: '1px',
+                      borderStyle: 'solid',
+                      borderColor: isEditing ? 'var(--color-primary)' : 'var(--color-surface-dark)'
                     }}
-                    title="Edit profile"
-                    aria-label="Edit profile"
+                    title={isEditing ? "Cancel editing" : "Edit profile"}
+                    aria-label={isEditing ? "Cancel editing" : "Edit profile"}
                   >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
+                    {isEditing ? (
+                      <>
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                        <span>Cancel</span>
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                      </>
+                    )}
                   </button>
                 </div>
-                
+
+                {/* Bio and Location Section */}
                 {isEditing ? (
                   <div className="space-y-4 animate-fadeIn">
-                    <textarea
-                      value={profile.bio}
-                      onChange={(e) => {
-                        if (menteeProfile) {
-                          setMenteeProfile({...menteeProfile, bio: e.target.value});
-                        } else if (mentorProfile) {
-                          setMentorProfile({...mentorProfile, bio: e.target.value});
-                        }
-                      }}
-                      className="w-full p-3 rounded-lg resize-none transition-all duration-300 focus:ring-2 focus:outline-none"
-                      style={{
-                        backgroundColor: 'var(--color-surface)',
-                        borderColor: 'var(--color-surface-dark)',
-                        color: 'var(--color-tertiary)',
-                        borderWidth: '1px',
-                        borderStyle: 'solid'
-                      }}
-                      rows={2}
-                      placeholder="Write a short description about yourself"
-                    />
-                    {userRole === 'mentor' && mentorProfile && (
-                      <input
-                        type="text"
-                        value={mentorProfile.location || ''}
-                        onChange={(e) => setMentorProfile({...mentorProfile, location: e.target.value})}
-                        className="w-full p-3 rounded-lg transition-all duration-300 focus:ring-2 focus:outline-none"
+                    <div>
+                      <label className="block text-sm font-medium mb-2" style={{ color: 'var(--color-tertiary-light)' }}>
+                        Bio
+                      </label>
+                      <textarea
+                        value={profile.bio}
+                        onChange={(e) => {
+                          if (menteeProfile) {
+                            setMenteeProfile({ ...menteeProfile, bio: e.target.value });
+                          } else if (mentorProfile) {
+                            setMentorProfile({ ...mentorProfile, bio: e.target.value });
+                          }
+                        }}
+                        className="w-full p-4 rounded-lg resize-none transition-all duration-300 focus:ring-2 focus:outline-none shadow-sm"
                         style={{
                           backgroundColor: 'var(--color-surface)',
                           borderColor: 'var(--color-surface-dark)',
                           color: 'var(--color-tertiary)',
-                          borderWidth: '1px',
+                          borderWidth: '2px',
                           borderStyle: 'solid'
                         }}
-                        placeholder="Location (optional)"
+                        rows={3}
+                        placeholder="Write a short description about yourself..."
                       />
+                    </div>
+                    {userRole === 'mentor' && mentorProfile && (
+                      <div>
+                        <label className="block text-sm font-medium mb-2" style={{ color: 'var(--color-tertiary-light)' }}>
+                          Location
+                        </label>
+                        <input
+                          type="text"
+                          value={mentorProfile.location || ''}
+                          onChange={(e) => setMentorProfile({ ...mentorProfile, location: e.target.value })}
+                          className="w-full p-4 rounded-lg transition-all duration-300 focus:ring-2 focus:outline-none shadow-sm"
+                          style={{
+                            backgroundColor: 'var(--color-surface)',
+                            borderColor: 'var(--color-surface-dark)',
+                            color: 'var(--color-tertiary)',
+                            borderWidth: '2px',
+                            borderStyle: 'solid'
+                          }}
+                          placeholder="e.g., San Francisco, CA"
+                        />
+                      </div>
                     )}
-                  </div>
-                ) : (
-                  <div className="space-y-2 animate-fadeIn">
-                    <p className="mb-4" style={{ color: 'var(--color-tertiary)' }}>{profile.bio}</p>
-                    {userRole === 'mentor' && mentorProfile?.location && (
-                      <p className="text-sm" style={{ color: 'var(--color-tertiary-light)' }}>📍 {mentorProfile.location}</p>
-                    )}
-                  </div>
-                )}
-                
-                {/* Action Buttons */}
-                <div className="flex gap-3 animate-fadeInUp">
-                  <Link href="/ask-question">
-                    <button 
-                      className="px-4 py-2 rounded-lg font-medium transition-all duration-300 hover:scale-105 hover:shadow-lg"
-                      style={{
-                        backgroundColor: 'var(--color-surface-light)',
-                        color: 'var(--color-secondary)'
-                      }}
-                    >
-                      ❓ Ask Question
-                    </button>
-                  </Link>
-                  <Link href="/create-article">
-                    <button 
-                      className="px-4 py-2 rounded-lg font-medium transition-all duration-300 hover:scale-105 hover:shadow-lg"
-                      style={{
-                        backgroundColor: 'var(--color-surface-light)',
-                        color: 'var(--color-secondary)'
-                      }}
-                    >
-                      ✍️ Write Article
-                    </button>
-                  </Link>
-                  <button 
-                    onClick={() => setIsEditing(!isEditing)}
-                    className="px-4 py-2 rounded-lg font-medium transition-all duration-300 hover:scale-105 hover:shadow-lg"
-                    style={{
-                      backgroundColor: 'var(--color-surface)',
-                      color: 'var(--color-tertiary)'
-                    }}
-                  >
-                    {isEditing ? '❌ Cancel' : '✏️ Edit Profile'}
-                  </button>
-                  {isEditing && (
-                    <button 
+                    <button
                       onClick={handleSaveProfile}
-                      className="px-4 py-2 rounded-lg font-medium transition-all duration-300 hover:scale-105 hover:shadow-lg animate-fadeIn"
+                      className="px-6 py-2.5 rounded-lg font-semibold transition-all duration-300 hover:scale-105 hover:shadow-lg"
                       style={{
                         backgroundColor: 'var(--color-primary)',
                         color: 'var(--color-neutral)'
                       }}
                     >
-                      💾 Save
+                      💾 Save Changes
                     </button>
-                  )}
-                </div>
+                  </div>
+                ) : (
+                  <div className="space-y-3 animate-fadeIn">
+                    <p className="text-base leading-relaxed" style={{ color: 'var(--color-tertiary)' }}>
+                      {profile.bio}
+                    </p>
+                    {userRole === 'mentor' && mentorProfile?.location && (
+                      <div className="flex items-center gap-2 text-sm" style={{ color: 'var(--color-tertiary-light)' }}>
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                        <span>{mentorProfile.location}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Action Buttons */}
+                {!isEditing && (
+                  <div className="flex flex-wrap gap-3 pt-4 mt-4 animate-fadeInUp" style={{ borderTop: '1px solid var(--color-surface-dark)' }}>
+                    <Link href="/ask-question">
+                      <button
+                        className="flex items-center gap-2 px-5 py-2.5 rounded-lg font-medium transition-all duration-300 hover:scale-105 hover:shadow-lg"
+                        style={{
+                          backgroundColor: 'var(--color-surface-light)',
+                          color: 'var(--color-secondary)',
+                          borderWidth: '1px',
+                          borderStyle: 'solid',
+                          borderColor: 'var(--color-surface-dark)'
+                        }}
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span>Ask Question</span>
+                      </button>
+                    </Link>
+                    <Link href="/create-article">
+                      <button
+                        className="flex items-center gap-2 px-5 py-2.5 rounded-lg font-medium transition-all duration-300 hover:scale-105 hover:shadow-lg"
+                        style={{
+                          backgroundColor: 'var(--color-surface-light)',
+                          color: 'var(--color-secondary)',
+                          borderWidth: '1px',
+                          borderStyle: 'solid',
+                          borderColor: 'var(--color-surface-dark)'
+                        }}
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        <span>Write Article</span>
+                      </button>
+                    </Link>
+                    <Link href="/communities">
+                      <button
+                        className="flex items-center gap-2 px-5 py-2.5 rounded-lg font-medium transition-all duration-300 hover:scale-105 hover:shadow-lg"
+                        style={{
+                          backgroundColor: 'var(--color-surface-light)',
+                          color: 'var(--color-secondary)',
+                          borderWidth: '1px',
+                          borderStyle: 'solid',
+                          borderColor: 'var(--color-surface-dark)'
+                        }}
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                        </svg>
+                        <span>Communities</span>
+                      </button>
+                    </Link>
+                  </div>
+                )}
               </div>
             </div>
           </div>
 
           {/* Profile Tabs */}
-          <div 
+          <div
             className="rounded-2xl shadow-lg border animate-fadeIn"
             style={{
               backgroundColor: 'var(--color-neutral)',
@@ -782,14 +1113,14 @@ export default function ProfilePage() {
             }}
           >
             {/* Tab Navigation */}
-            <div 
+            <div
               className="px-6"
-              style={{ 
+              style={{
                 borderBottom: '1px solid var(--color-surface-dark)'
               }}
             >
               <div className="flex gap-8">
-                {["My Questions", "Articles", "Posts", "Answered", "Bookmarked", "Reputation"].map((tab) => (
+                {["My Questions", "Articles", "Posts", "Answered", "Bookmarked", "Reputation", "Badges"].map((tab) => (
                   <button
                     key={tab}
                     onClick={() => setActiveTab(tab)}
@@ -821,6 +1152,9 @@ export default function ProfilePage() {
                   reputationHistory={reputationHistory}
                   repLoading={repLoading}
                   repError={repError}
+                  badges={badges}
+                  badgesLoading={badgesLoading}
+                  badgesError={badgesError}
                 />
               )}
             </div>
@@ -830,7 +1164,7 @@ export default function ProfilePage() {
         {/* Right Sidebar */}
         <aside className="w-80 flex flex-col gap-6">
           {/* Personal Details */}
-          <div 
+          <div
             className="rounded-2xl shadow-lg p-6 animate-fadeIn"
             style={{
               backgroundColor: 'var(--color-neutral)',
@@ -863,7 +1197,7 @@ export default function ProfilePage() {
                 </div>
               </div>
             </div>
-            
+
             <div className="space-y-4">
               <div aria-label="Email">
                 <div className="block text-sm font-medium mb-1" style={{ color: 'var(--color-tertiary-light)' }}>Email</div>
@@ -872,17 +1206,73 @@ export default function ProfilePage() {
 
               <div aria-label="Joined">
                 <div className="block text-sm font-medium mb-1" style={{ color: 'var(--color-tertiary-light)' }}>Joined</div>
-                <p style={{ color: 'var(--color-tertiary)' }}>{new Date(profile.joinedDate).toLocaleDateString('en-US', { 
-                  year: 'numeric', 
-                  month: 'long', 
-                  day: 'numeric' 
+                <p style={{ color: 'var(--color-tertiary)' }}>{new Date(profile.joinedDate).toLocaleDateString('en-US', {
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric'
                 })}</p>
               </div>
+
+              {/* Badges - Below Reputation */}
+              {badges && badges.badges && badges.badges.filter((b: any) => b.isEarned).length > 0 && (
+                <div aria-label="Badges">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="block text-sm font-medium" style={{ color: 'var(--color-tertiary-light)' }}>Badges</div>
+                    <div className="text-xs px-2 py-1 rounded-full font-semibold" style={{ 
+                      backgroundColor: 'var(--color-primary)', 
+                      color: 'var(--color-neutral)' 
+                    }}>
+                      {badges.badges.filter((b: any) => b.isEarned).length}
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {badges.badges
+                      .filter((b: any) => b.isEarned)
+                      .slice(0, 3) // Show max 3 badges
+                      .map((badge: any) => (
+                        <div
+                          key={badge.id}
+                          className="flex items-center gap-2 px-3 py-2 rounded-lg transition-transform hover:scale-105"
+                          style={{
+                            backgroundColor: 'var(--color-surface-light)',
+                            borderWidth: '2px',
+                            borderColor: 'var(--color-primary)',
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                          }}
+                          title={badge.description}
+                        >
+                          {badge.imageUrl && (
+                            <img
+                              src={badge.imageUrl}
+                              alt={badge.name}
+                              className="w-6 h-6 rounded-full"
+                            />
+                          )}
+                          <span className="text-sm font-semibold" style={{ color: 'var(--color-tertiary)' }}>
+                            {badge.name}
+                          </span>
+                        </div>
+                      ))}
+                    {badges.badges.filter((b: any) => b.isEarned).length > 3 && (
+                      <button
+                        onClick={() => setActiveTab("Badges")}
+                        className="flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-medium transition-all hover:scale-105"
+                        style={{
+                          backgroundColor: 'var(--color-surface-dark)',
+                          color: 'var(--color-tertiary-light)'
+                        }}
+                      >
+                        +{badges.badges.filter((b: any) => b.isEarned).length - 3} more
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
           {/* Skills/Knows About */}
-          <div 
+          <div
             className="rounded-2xl shadow-lg p-6 animate-fadeIn"
             style={{
               backgroundColor: 'var(--color-neutral)',
@@ -893,7 +1283,7 @@ export default function ProfilePage() {
             }}
           >
             <h3 className="text-lg font-semibold mb-4" style={{ color: 'var(--color-tertiary)' }}>🎯 Knows about</h3>
-            
+
             {isEditing ? (
               <div className="space-y-2">
                 {((userRole === 'mentee' ? menteeProfile?.skills : mentorProfile?.skills) || []).map((skill, index) => (
@@ -905,11 +1295,11 @@ export default function ProfilePage() {
                         if (userRole === 'mentee' && menteeProfile) {
                           const newSkills = [...menteeProfile.skills];
                           newSkills[index] = e.target.value;
-                          setMenteeProfile({...menteeProfile, skills: newSkills});
+                          setMenteeProfile({ ...menteeProfile, skills: newSkills });
                         } else if (userRole === 'mentor' && mentorProfile) {
                           const newSkills = [...mentorProfile.skills];
                           newSkills[index] = e.target.value;
-                          setMentorProfile({...mentorProfile, skills: newSkills});
+                          setMentorProfile({ ...mentorProfile, skills: newSkills });
                         }
                       }}
                       className="flex-1 p-2 rounded-lg transition-all duration-300 focus:ring-2 focus:outline-none"
@@ -927,10 +1317,10 @@ export default function ProfilePage() {
                       onClick={() => {
                         if (userRole === 'mentee' && menteeProfile) {
                           const newSkills = menteeProfile.skills.filter((_, i) => i !== index);
-                          setMenteeProfile({...menteeProfile, skills: newSkills});
+                          setMenteeProfile({ ...menteeProfile, skills: newSkills });
                         } else if (userRole === 'mentor' && mentorProfile) {
                           const newSkills = mentorProfile.skills.filter((_, i) => i !== index);
-                          setMentorProfile({...mentorProfile, skills: newSkills});
+                          setMentorProfile({ ...mentorProfile, skills: newSkills });
                         }
                       }}
                       className="transition-all duration-300 hover:scale-110"
@@ -943,9 +1333,9 @@ export default function ProfilePage() {
                 <button
                   onClick={() => {
                     if (userRole === 'mentee' && menteeProfile) {
-                      setMenteeProfile({...menteeProfile, skills: [...menteeProfile.skills, ""]});
+                      setMenteeProfile({ ...menteeProfile, skills: [...menteeProfile.skills, ""] });
                     } else if (userRole === 'mentor' && mentorProfile) {
-                      setMentorProfile({...mentorProfile, skills: [...mentorProfile.skills, ""]});
+                      setMentorProfile({ ...mentorProfile, skills: [...mentorProfile.skills, ""] });
                     }
                   }}
                   className="w-full p-2 rounded-lg border border-dashed transition-all duration-300 hover:scale-105"
@@ -960,15 +1350,15 @@ export default function ProfilePage() {
             ) : (
               <div className="space-y-2">
                 {((userRole === 'mentee' ? menteeProfile?.skills : mentorProfile?.skills) || []).map((skill, index) => (
-                  <div 
-                    key={skill || `skill-${index}`} 
+                  <div
+                    key={skill || `skill-${index}`}
                     className="w-full h-6 rounded-full animate-fadeInUp"
-                    style={{ 
+                    style={{
                       backgroundColor: 'var(--color-surface)',
                       animationDelay: `${index * 0.05}s`
                     }}
                   >
-                    <div 
+                    <div
                       className="h-full rounded-full flex items-center px-3"
                       style={{
                         background: 'linear-gradient(to right, var(--color-primary), var(--color-secondary))'
@@ -983,7 +1373,7 @@ export default function ProfilePage() {
           </div>
 
           {/* Stats */}
-          <div 
+          <div
             className="rounded-2xl shadow-lg p-6 animate-fadeIn"
             style={{
               backgroundColor: 'var(--color-neutral)',

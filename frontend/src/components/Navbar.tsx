@@ -89,7 +89,7 @@ const Navbar = ({
           className="w-6 h-6 text-[var(--color-tertiary-light)] cursor-pointer hover:text-[var(--color-primary)] transition"
           onClick={() => router.push('/home')}
         />
-        <Bell className="w-6 h-6 text-[var(--color-tertiary-light)] cursor-pointer hover:text-[var(--color-primary)] transition" />
+        {/*<Bell className="w-6 h-6 text-[var(--color-tertiary-light)] cursor-pointer hover:text-[var(--color-primary)] transition" />*/}
         
         {/* User Menu Dropdown */}
         <div className="relative" ref={menuRef}>

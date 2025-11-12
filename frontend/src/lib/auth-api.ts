@@ -662,6 +662,101 @@ class AuthAPI {
     return response.json();
   }
 
+  // ==================== Badge Methods ====================
+  
+  // Get all available badges with user's earned status
+  async getAvailableBadges(): Promise<{
+    currentReputation: number;
+    badges: Array<{
+      id: number;
+      name: string;
+      description: string;
+      imageUrl: string | null;
+      category: string | null;
+      reputationThreshold: number;
+      isEarned: boolean;
+      isEligible: boolean;
+      awardedAt: Date | null;
+      isDisplayed: boolean;
+      progressPercent: number;
+    }>;
+    earnedCount: number;
+    totalCount: number;
+  }> {
+    const response = await fetch(`${API_BASE_URL}/badges/available`, {
+      method: 'GET',
+      headers: this.getHeaders(true),
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.message || 'Failed to fetch available badges');
+    }
+    return response.json();
+  }
+
+  // Get only user's earned badges
+  async getEarnedBadges(): Promise<{
+    badges: Array<{
+      id: number;
+      name: string;
+      description: string;
+      imageUrl: string | null;
+      category: string | null;
+      reputationThreshold: number;
+      awardedAt: Date;
+      isDisplayed: boolean;
+    }>;
+    count: number;
+  }> {
+    const response = await fetch(`${API_BASE_URL}/badges/earned`, {
+      method: 'GET',
+      headers: this.getHeaders(true),
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.message || 'Failed to fetch earned badges');
+    }
+    return response.json();
+  }
+
+  // Toggle badge display on profile
+  async toggleBadgeDisplay(badgeId: number): Promise<{
+    success: boolean;
+    isDisplayed: boolean;
+  }> {
+    const response = await fetch(`${API_BASE_URL}/badges/${badgeId}/toggle-display`, {
+      method: 'POST',
+      headers: this.getHeaders(true),
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.message || 'Failed to toggle badge display');
+    }
+    return response.json();
+  }
+
+  // Check and award eligible badges to user
+  async checkAndAwardBadges(): Promise<{
+    newBadgesAwarded: number;
+    badges: Array<{
+      id: number;
+      name: string;
+      description: string;
+      imageUrl: string | null;
+      reputationThreshold: number;
+    }>;
+  }> {
+    const response = await fetch(`${API_BASE_URL}/badges/check-and-award`, {
+      method: 'POST',
+      headers: this.getHeaders(true),
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.message || 'Failed to check and award badges');
+    }
+    return response.json();
+  }
+
   // ==================== Mentee Request Methods (For Mentors) ====================
   
   // Get all mentorship requests for the current mentor

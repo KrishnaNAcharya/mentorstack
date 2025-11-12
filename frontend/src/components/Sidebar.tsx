@@ -59,8 +59,7 @@ const Sidebar = ({
       { name: "Tags", href: "/tags" },
       { name: "Articles", href: "/articles" },
       { name: "Bookmarks", href: "/bookmarks" },
-      { name: "Contact", href: "/contact" },
-      { name: "Help", href: "#" }
+      { name: "Contact", href: "/contact" }
     );
 
     setDynamicMenuItems(baseMenuItems);

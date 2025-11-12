@@ -49,7 +49,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
   const handleLogout = async () => {
     await adminAPI.logout();
-    router.push('/admin/login');
+    router.push('/admin/2263746');
   };
 
   const navigation = [
