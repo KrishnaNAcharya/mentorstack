@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Article as APIArticle, authAPI, Tag } from '@/lib/auth-api';
 import Layout from '@/components/Layout';
+import gsap from 'gsap';
 import { Eye, X, Plus } from 'lucide-react';
 
 function ArticlesPageContent() {
@@ -16,8 +17,22 @@ function ArticlesPageContent() {
   const [userVotes, setUserVotes] = useState<Record<number, 'upvote' | 'downvote' | null>>({});
   const [searchQuery, setSearchQuery] = useState('');
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const articlesGridRef = useRef<HTMLDivElement>(null);
 
   const searchParams = useSearchParams();
+
+  useEffect(() => {
+    if (!loading && articlesGridRef.current) {
+      gsap.from(articlesGridRef.current.children, {
+        opacity: 0,
+        scale: 0.95,
+        y: 20,
+        duration: 0.6,
+        stagger: 0.1,
+        ease: "power2.out"
+      });
+    }
+  }, [loading, articles]);
 
   useEffect(() => {
     const loadData = async () => {

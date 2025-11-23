@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { authAPI } from "@/lib/auth-api";
+import gsap from "gsap";
 
 export default function LoginPage() {
   const [tab, setTab] = useState<"login" | "signup">("login");
@@ -11,6 +12,19 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const router = useRouter();
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (containerRef.current) {
+      gsap.from(containerRef.current.children, {
+        opacity: 0,
+        y: 30,
+        duration: 0.8,
+        stagger: 0.15,
+        ease: "power3.out"
+      });
+    }
+  }, []);
 
   const handleSignupClick = () => {
     router.push('/role-selection');
@@ -34,7 +48,7 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 text-slate-700 p-4">
-      <div className="flex flex-col md:flex-row w-full max-w-5xl min-h-[600px] bg-white rounded-2xl shadow-2xl overflow-hidden">
+      <div ref={containerRef} className="flex flex-col md:flex-row w-full max-w-5xl min-h-[600px] bg-white rounded-2xl shadow-2xl overflow-hidden">
         {/* Left Section - Form */}
         <div className="flex-1 p-6 sm:p-8 md:p-12 flex flex-col justify-center">
           <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-secondary-dark mb-2">

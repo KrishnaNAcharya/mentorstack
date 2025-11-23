@@ -1,8 +1,47 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import Layout from "../../components/Layout";
+import gsap from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
+
+gsap.registerPlugin(ScrollTrigger);
 
 export default function Home() {
+  const featuresRef = useRef<HTMLDivElement>(null);
+  const statsRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (featuresRef.current) {
+      gsap.from(featuresRef.current.children, {
+        scrollTrigger: {
+          trigger: featuresRef.current,
+          start: "top 80%"
+        },
+        opacity: 0,
+        y: 50,
+        duration: 0.8,
+        stagger: 0.2,
+        ease: "power3.out"
+      });
+    }
+
+    if (statsRef.current) {
+      const stats = statsRef.current.querySelectorAll('.stat-item');
+      gsap.from(stats, {
+        scrollTrigger: {
+          trigger: statsRef.current,
+          start: "top 80%"
+        },
+        scale: 0.5,
+        opacity: 0,
+        duration: 0.6,
+        stagger: 0.15,
+        ease: "back.out(1.7)"
+      });
+    }
+  }, []);
+
   return (
     <Layout>
       <div className="min-h-screen" style={{ backgroundColor: 'var(--color-neutral-dark)' }}>

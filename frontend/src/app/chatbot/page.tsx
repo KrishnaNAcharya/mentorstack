@@ -58,14 +58,34 @@ export default function ChatbotPage() {
     const wsUrl = backendUrl.replace('https://', 'wss://').replace('http://', 'ws://');
     const ws = new WebSocket(`${wsUrl}/ws?token=${encodeURIComponent(token)}`);
     wsRef.current = ws;
+    
+    ws.onopen = () => {
+      console.log('WebSocket connected');
+    };
+    
     ws.onmessage = (e) => {
+      console.log('WebSocket message received:', e.data);
       try {
         const data = JSON.parse(e.data);
         if (data?.type === 'ai.reply' && data?.answer) {
-          setMessages((prev) => [...prev, { role: 'ai', text: data.answer, ts: new Date().toISOString() }]);
+          setMessages((prev) => {
+            const newMsg = { role: 'ai' as const, text: data.answer, ts: new Date().toISOString() };
+            return [...prev, newMsg];
+          });
         }
-      } catch {}
+      } catch (err) {
+        console.error('WebSocket parse error:', err);
+      }
     };
+    
+    ws.onerror = (err) => {
+      console.error('WebSocket error:', err);
+    };
+    
+    ws.onclose = () => {
+      console.log('WebSocket closed');
+    };
+    
     return () => ws.close();
   }, [token]);
 
@@ -75,7 +95,7 @@ export default function ChatbotPage() {
     setInput('');
     setMessages((prev) => [...prev, { role: 'user', text, ts: new Date().toISOString() }]);
     try {
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/chat/ask`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/chat/ask`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -83,7 +103,20 @@ export default function ChatbotPage() {
         },
         body: JSON.stringify({ question: text }),
       });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      
+      const data = await response.json();
+      console.log('API response:', data);
+      
+      // If response includes answer directly, add it immediately (fallback)
+      if (data?.answer) {
+        setMessages((prev) => [...prev, { role: 'ai', text: data.answer, ts: new Date().toISOString() }]);
+      }
     } catch (e) {
+      console.error('Send error:', e);
       setMessages((prev) => [...prev, { role: 'system', text: 'Failed to send question', ts: new Date().toISOString() }]);
     }
   };

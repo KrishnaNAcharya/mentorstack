@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Layout from "../../components/Layout";
 import { authAPI, User, Question } from "@/lib/auth-api";
+import gsap from "gsap";
 
 export default function MenteeHomePage() {
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -14,6 +15,19 @@ export default function MenteeHomePage() {
   const [activeFilter, setActiveFilter] = useState("Newest");
   const [searchQuery, setSearchQuery] = useState("");
   const router = useRouter();
+  const cardsRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!loading && cardsRef.current) {
+      gsap.from(cardsRef.current.children, {
+        opacity: 0,
+        y: 30,
+        duration: 0.5,
+        stagger: 0.08,
+        ease: "power2.out"
+      });
+    }
+  }, [loading, filteredQuestions]);
 
   useEffect(() => {
     const loadData = async () => {
