@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useRef } from "react";
-import Layout from "../../components/MentorLayout";
+import Layout from "../../components/Layout";
 import { Paperclip, Smile } from "lucide-react";
 import dynamic from "next/dynamic";
 type Message = {
