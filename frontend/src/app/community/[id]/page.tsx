@@ -507,15 +507,15 @@ export default function CommunityDetailPage() {
                 
                 {/* Community Info */}
                 <div className="flex-1">
-                  <div className="flex items-start justify-between mb-2">
+                  <div className="flex flex-col sm:flex-row items-start justify-between mb-2 gap-3">
                     <h1 
-                      className="text-3xl font-bold"
+                      className="text-2xl sm:text-3xl font-bold"
                       style={{ color: 'var(--color-tertiary)' }}
                     >
                       {community.name}
                     </h1>
                     {currentUserId === community.createdById && (
-                      <div className="flex gap-2">
+                      <div className="flex gap-2 flex-shrink-0">
                         <button
                           onClick={handleEditCommunity}
                           className="flex items-center gap-1 px-3 py-1.5 text-sm rounded-lg transition-all duration-200 hover:scale-105"
@@ -586,7 +586,7 @@ export default function CommunityDetailPage() {
                   
                   {/* Stats */}
                   <div 
-                    className="flex items-center gap-6 text-sm mb-4"
+                    className="flex flex-wrap items-center gap-3 sm:gap-6 text-sm mb-4"
                     style={{ color: 'var(--color-tertiary-light)' }}
                   >
                     <span className="flex items-center gap-1">
@@ -601,7 +601,7 @@ export default function CommunityDetailPage() {
                   </div>
                   
                   {/* Actions */}
-                  <div className="flex gap-3">
+                  <div className="flex flex-wrap gap-3">
                     {isMember ? (
                       <>
                         <button

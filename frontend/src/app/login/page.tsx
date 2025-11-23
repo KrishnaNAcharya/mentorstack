@@ -33,11 +33,11 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 text-slate-700">
-      <div className="flex w-full max-w-5xl min-h-[600px] bg-white rounded-2xl shadow-2xl overflow-hidden">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 text-slate-700 p-4">
+      <div className="flex flex-col md:flex-row w-full max-w-5xl min-h-[600px] bg-white rounded-2xl shadow-2xl overflow-hidden">
         {/* Left Section - Form */}
-        <div className="flex-1 p-12 flex flex-col justify-center">
-          <h1 className="text-4xl font-bold text-secondary-dark mb-2">
+        <div className="flex-1 p-6 sm:p-8 md:p-12 flex flex-col justify-center">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-secondary-dark mb-2">
             {tab === "login" ? "Welcome back" : "Create Account"}
           </h1>
           <p className="text-secondary-light mb-10">
@@ -152,12 +152,12 @@ export default function LoginPage() {
         </div>
 
         {/* Right Section - Branding */}
-        <div className="flex-1 bg-gradient-to-br bg-surface flex flex-col items-center justify-center relative">
-          <div className="w-32 h-32 bg-gradient-to-br bg-primary rounded-2xl shadow-xl flex items-center justify-center mb-6">
-            <span className="text-4xl font-extrabold text-neutral">MS</span>
+        <div className="flex-1 bg-gradient-to-br bg-surface flex flex-col items-center justify-center relative p-6 sm:p-8">
+          <div className="w-24 h-24 sm:w-32 sm:h-32 bg-gradient-to-br bg-primary rounded-2xl shadow-xl flex items-center justify-center mb-6">
+            <span className="text-3xl sm:text-4xl font-extrabold text-neutral">MS</span>
           </div>
-          <h2 className="text-3xl font-extrabold text-emerald-800 mb-2">MentorStack</h2>
-          <p className="text-emerald-700 font-medium">
+          <h2 className="text-2xl sm:text-3xl font-extrabold text-emerald-800 mb-2">MentorStack</h2>
+          <p className="text-sm sm:text-base text-emerald-700 font-medium text-center">
             Empowering growth through mentorship
           </p>
           <div className="absolute top-4 right-4 w-24 h-24 rounded-full bg-gradient-to-tr from-emerald-500 to-emerald-600 opacity-10" />

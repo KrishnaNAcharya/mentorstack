@@ -143,9 +143,9 @@ const RequestsPage: React.FC = () => {
         <Layout>
             <div className="min-h-screen bg-neutral-dark flex">
                 <div className="flex-1 min-w-0">
-                    <main className="p-6">
-                        <div className="flex items-center justify-between mb-6">
-                            <h1 className="text-3xl font-bold" style={{ color: 'var(--color-tertiary)' }}>
+                    <main className="p-4 sm:p-6">
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-2">
+                            <h1 className="text-2xl sm:text-3xl font-bold" style={{ color: 'var(--color-tertiary)' }}>
                                 Requests
                             </h1>
                             <div className="text-sm" style={{ color: 'var(--color-tertiary-light)' }}>
@@ -154,12 +154,12 @@ const RequestsPage: React.FC = () => {
                         </div>
 
                         {/* Tabs */}
-                        <div className="flex space-x-1 mb-8">
+                        <div className="flex flex-wrap gap-2 mb-6 sm:mb-8">
                             {(['All', 'Pending', 'Accepted', 'Rejected'] as const).map((tab) => (
                                 <button
                                     key={tab}
                                     onClick={() => setActiveTab(tab)}
-                                    className={`px-6 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${activeTab === tab ? 'shadow-md' : 'hover:bg-opacity-10'
+                                    className={`px-4 sm:px-6 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${activeTab === tab ? 'shadow-md' : 'hover:bg-opacity-10'
                                         }`}
                                     style={{
                                         backgroundColor: activeTab === tab ? 'var(--color-primary)' : 'var(--color-surface)',

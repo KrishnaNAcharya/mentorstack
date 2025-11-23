@@ -116,11 +116,11 @@ export default function Tags() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <div className="text-center">
               <div className="flex items-center justify-center gap-3 mb-4">
-                <span className="text-4xl" style={{ animation: 'float 3s ease-in-out infinite' }}>
+                <span className="text-3xl sm:text-4xl" style={{ animation: 'float 3s ease-in-out infinite' }}>
                   🏷️
                 </span>
                 <h1 
-                  className="text-3xl font-bold"
+                  className="text-2xl sm:text-3xl font-bold"
                   style={{ color: 'var(--color-tertiary)' }}
                 >
                   Explore Topics

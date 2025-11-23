@@ -546,9 +546,9 @@ export default function QuestionDetailPage() {
 
   return (
     <Layout>
-      <div className="max-w-4xl mx-auto p-6">
+      <div className="max-w-4xl mx-auto p-4 sm:p-6">
         {/* Back Navigation */}
-        <div className="mb-6">
+        <div className="mb-4 sm:mb-6">
           <button
             onClick={goBackToQuestions}
             className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
@@ -562,8 +562,8 @@ export default function QuestionDetailPage() {
 
         {/* Question Content */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-          <div className="p-8">
-            <div className="flex items-start gap-6">
+          <div className="p-4 sm:p-6 lg:p-8">
+            <div className="flex flex-col sm:flex-row items-start gap-4 sm:gap-6">
               {/* Question Content */}
               <div className="flex-1">
                 {/* Question Header */}
@@ -575,7 +575,7 @@ export default function QuestionDetailPage() {
                           type="text"
                           value={editQuestionTitle}
                           onChange={(e) => setEditQuestionTitle(e.target.value)}
-                          className="w-full text-3xl font-bold text-gray-900 border-b-2 border-blue-500 focus:outline-none"
+                          className="w-full text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 border-b-2 border-blue-500 focus:outline-none"
                           placeholder="Question title"
                         />
                         <textarea

@@ -867,18 +867,18 @@ export default function ProfilePage() {
 
   return (
     <Layout>
-      <div className="flex flex-1 p-8 gap-8 overflow-auto" style={{ backgroundColor: 'var(--color-neutral-dark)' }}>
+      <div className="flex flex-col lg:flex-row flex-1 p-4 sm:p-6 lg:p-8 gap-6 lg:gap-8 overflow-auto" style={{ backgroundColor: 'var(--color-neutral-dark)' }}>
         {/* Main Profile Content */}
         <div className="flex-1">
           {/* Profile Header with gradient and animation */}
           <div
-            className="rounded-2xl shadow-sm border p-8 mb-6 animate-fadeIn hover:shadow-lg transition-all duration-300"
+            className="rounded-2xl shadow-sm border p-4 sm:p-6 lg:p-8 mb-6 animate-fadeIn hover:shadow-lg transition-all duration-300"
             style={{
               backgroundColor: 'var(--color-neutral)',
               borderColor: 'var(--color-surface-dark)'
             }}
           >
-            <div className="flex items-start gap-6">
+            <div className="flex flex-col sm:flex-row items-start gap-4 sm:gap-6">
               {/* Profile Picture with Upload */}
               <AvatarUpload
                 currentAvatarUrl={profile.avatarUrl || null}
@@ -906,12 +906,12 @@ export default function ProfilePage() {
                 <div className="flex items-start justify-between mb-4 animate-slideInRight">
                   <div className="space-y-3">
                     {/* Name */}
-                    <h1 className="text-4xl font-bold tracking-tight" style={{ color: 'var(--color-tertiary)' }}>
+                    <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight" style={{ color: 'var(--color-tertiary)' }}>
                       {profile.name}
                     </h1>
                     
                     {/* User ID and Role Badge */}
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                       <span 
                         className="text-sm font-medium px-3 py-1 rounded-full"
                         style={{ 

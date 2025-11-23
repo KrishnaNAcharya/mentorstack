@@ -21,14 +21,14 @@ export default function RoleSelection() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100">
-      <div className="w-full max-w-4xl mx-auto p-8">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 p-4">
+      <div className="w-full max-w-4xl mx-auto">
         {/* Header */}
-        <div className="text-center mb-12">
-          <div className="w-20 h-20 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl shadow-xl flex items-center justify-center mx-auto mb-6">
-            <span className="text-2xl font-extrabold text-white">MS</span>
+        <div className="text-center mb-8 sm:mb-12">
+          <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl shadow-xl flex items-center justify-center mx-auto mb-4 sm:mb-6">
+            <span className="text-xl sm:text-2xl font-extrabold text-white">MS</span>
           </div>
-          <h1 className="text-4xl font-bold text-slate-800 mb-4">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-slate-800 mb-4">
             Welcome to MentorStack
           </h1>
           <p className="text-xl text-slate-600 max-w-2xl mx-auto">
@@ -37,7 +37,7 @@ export default function RoleSelection() {
         </div>
 
         {/* Role Selection Cards */}
-        <div className="grid md:grid-cols-2 gap-8 mb-12">
+        <div className="grid md:grid-cols-2 gap-6 sm:gap-8 mb-8 sm:mb-12">
           {/* Mentee Card */}
           <div
             onClick={() => handleRoleSelect("mentee")}

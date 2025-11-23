@@ -458,19 +458,19 @@ export default function CreateArticle() {
 
     return (
         <div className="min-h-screen bg-[#f4f4f4]">
-            <div className="max-w-6xl mx-auto p-6">
-                <div className="mb-8">
-                    <h1 className="text-3xl font-bold text-[#172A3A] mb-2">
+            <div className="max-w-6xl mx-auto p-4 sm:p-6">
+                <div className="mb-6 sm:mb-8">
+                    <h1 className="text-2xl sm:text-3xl font-bold text-[#172A3A] mb-2">
                         Create Article
                     </h1>
                     <p className="text-[#0e1921]">
                         Share your knowledge with the community by creating an article
                     </p>
                 </div>
-                <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 sm:gap-6">
                     <div className="lg:col-span-3">
                         <div className="bg-white rounded-xl border border-[#d1fae5] shadow-lg">
-                            <form onSubmit={handleSubmit} className="p-6 space-y-8">
+                            <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-6 sm:space-y-8">
                                 <div className="space-y-3">
                                     <label
                                         htmlFor="title"
@@ -504,8 +504,8 @@ export default function CreateArticle() {
                                     </p>
                                     <div className="bg-[#e6fcf1] border border-[#a8e4c9] rounded-xl overflow-hidden">
                                         <div className="border-b border-[#a8e4c9] bg-[#e6fcf1]/70 backdrop-blur-sm">
-                                            <div className="flex items-center justify-between p-3">
-                                                <div className="flex items-center gap-1">
+                                            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 gap-2">
+                                                <div className="flex flex-wrap items-center gap-1">
                                                     <div className="flex items-center gap-1 text-[#3d4e5c]">
                                                         <div className="relative group">
                                                             <button

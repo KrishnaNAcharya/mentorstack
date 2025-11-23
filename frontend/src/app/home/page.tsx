@@ -6,10 +6,10 @@ export default function Home() {
   return (
     <Layout>
       <div className="min-h-screen" style={{ backgroundColor: 'var(--color-neutral-dark)' }}>
-        <div className="max-w-7xl mx-auto px-4 py-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
           {/* Hero Section with fade-in animation */}
-          <div className="text-center mb-16 animate-fadeIn">
-            <h1 className="text-5xl font-bold mb-6 animate-slideDown" style={{ color: 'var(--color-tertiary)' }}>
+          <div className="text-center mb-12 sm:mb-16 animate-fadeIn">
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-4 sm:mb-6 animate-slideDown" style={{ color: 'var(--color-tertiary)' }}>
               About <span style={{ color: 'var(--color-primary)' }}>MentorStack</span>
             </h1>
             <p className="text-xl max-w-3xl mx-auto leading-relaxed animate-slideUp" style={{ color: 'var(--color-tertiary-light)' }}>
@@ -26,9 +26,9 @@ export default function Home() {
               borderColor: 'var(--color-surface-dark)'
             }}
           >
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center">
               <div className="animate-slideInLeft">
-                <h2 className="text-3xl font-bold mb-6" style={{ color: 'var(--color-tertiary)' }}>Our Mission</h2>
+                <h2 className="text-2xl sm:text-3xl font-bold mb-4 sm:mb-6" style={{ color: 'var(--color-tertiary)' }}>Our Mission</h2>
                 <p className="text-lg leading-relaxed mb-6" style={{ color: 'var(--color-tertiary-light)' }}>
                   We believe that learning is most effective when it&apos;s collaborative and guided. 
                   MentorStack bridges the gap between experienced developers and those just starting 
