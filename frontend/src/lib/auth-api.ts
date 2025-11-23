@@ -1,5 +1,6 @@
 // API service for authentication
-const API_BASE_URL = 'http://localhost:5000/api';
+const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+const API_BASE_URL = `${BACKEND_URL}/api`;
 
 export interface SignupData {
   email: string;

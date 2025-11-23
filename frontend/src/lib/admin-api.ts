@@ -1,5 +1,6 @@
 // Admin API service - Completely separate from main auth-api.ts
-const ADMIN_API_BASE_URL = 'http://localhost:5000/api/admin';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+const ADMIN_API_BASE_URL = `${API_BASE_URL}/api/admin`;
 
 export interface AdminUser {
   id: number;

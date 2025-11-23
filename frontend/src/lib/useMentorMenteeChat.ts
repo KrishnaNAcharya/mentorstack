@@ -3,7 +3,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { WS_BASE_URL } from "./ws-constants";
 import { authAPI } from "./auth-api";
 
-const API_BASE = 'http://localhost:5000/api';
+const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+const API_BASE = `${BACKEND_URL}/api`;
 
 export type ChatConnection = {
   connectionId: number;
