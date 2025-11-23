@@ -240,13 +240,14 @@ export default function AdminUsersPage() {
         <AdminLayout>
             <div className="min-h-screen bg-gray-50">
                 {/* Page Header */}
-                <div className="bg-gradient-to-r from-teal-500 to-teal-600 text-white rounded-lg p-6 mb-8">
+                <div className="relative overflow-hidden bg-gradient-to-r from-teal-500 to-teal-600 text-white rounded-xl p-6 mb-6 shadow-sm">
                     <div className="flex items-center justify-between">
                         <div>
-                            <h1 className="text-3xl font-bold mb-2 flex items-center gap-3">
+                            <h1 className="text-3xl font-bold mb-1 flex items-center gap-3">
                                 <Users className="w-8 h-8" />
                                 User Management
                             </h1>
+                            <p className="text-sm text-teal-100/90">Manage and moderate all platform users</p>
                         </div>
                         <div className="hidden md:block">
                             <div className="relative">
