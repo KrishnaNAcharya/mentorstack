@@ -88,10 +88,10 @@ export default function MenteeHomePage() {
   return (
     <Layout>
       {/* Feed */}
-      <section className="flex flex-1 p-8 overflow-auto">
+      <section className="flex flex-1 p-3 sm:p-4 md:p-6 lg:p-8 overflow-auto">
         {/* Questions Feed */}
         <div className="w-full max-w-4xl mx-auto">
-          <h2 className="text-3xl font-bold mb-6">
+          <h2 className="text-xl sm:text-2xl md:text-3xl font-bold mb-4 sm:mb-6">
             Welcome to{" "}
             <span className="text-[var(--color-primary-dark)]">
               MentorStack
@@ -100,15 +100,15 @@ export default function MenteeHomePage() {
           </h2>
 
           {/* Search and Filter Bar */}
-          <div className="flex flex-col gap-4 mb-8">
+          <div className="flex flex-col gap-3 sm:gap-4 mb-6 sm:mb-8">
             {/* Search Bar */}
             <div className="relative">
               <input
                 type="text"
-                placeholder="Search questions by title, description, or tags..."
+                placeholder="Search questions..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full px-4 py-3 pl-12 rounded-lg border border-[var(--color-neutral-dark)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] bg-[var(--color-neutral)]"
+                className="w-full px-3 sm:px-4 py-2 sm:py-3 pl-10 sm:pl-12 text-sm sm:text-base rounded-lg border border-[var(--color-neutral-dark)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] bg-[var(--color-neutral)]"
               />
               <svg
                 className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400"
@@ -126,7 +126,7 @@ export default function MenteeHomePage() {
             </div>
 
             {/* Filter Buttons */}
-            <div className="flex items-center gap-4">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3 md:gap-4">
               {["Newest", "Unanswered"].map((tab) => (
                 <button
                   key={tab}
@@ -141,7 +141,7 @@ export default function MenteeHomePage() {
                 </button>
               ))}
               <Link href="/ask-question">
-                <button className="ml-auto bg-[var(--color-primary-dark)] text-[var(--color-neutral)] px-5 py-2 rounded-lg font-medium shadow-lg hover:bg-[var(--color-primary)] transition">
+                <button className="ml-auto bg-[var(--color-primary-dark)] text-[var(--color-neutral)] px-3 sm:px-4 md:px-5 py-1.5 sm:py-2 text-sm sm:text-base rounded-lg font-medium shadow-lg hover:bg-[var(--color-primary)] transition">
                   Ask Question
                 </button>
               </Link>
@@ -165,15 +165,15 @@ export default function MenteeHomePage() {
             </div>
           ) : (
             filteredQuestions.map((question) => (
-            <div key={question.id} className="bg-[var(--color-neutral)] p-6 rounded-xl shadow-md mb-6 hover:shadow-lg transition">
-              <div className="flex items-start gap-4">
+            <div key={question.id} className="bg-[var(--color-neutral)] p-3 sm:p-4 md:p-6 rounded-xl shadow-md mb-4 sm:mb-6 hover:shadow-lg transition">
+              <div className="flex flex-col sm:flex-row items-start gap-3 sm:gap-4">
                 {/* Question Content */}
                 <div className="flex-1">
                   <div className="text-sm text-[var(--color-tertiary-light)] mb-2">
                     @{question.authorName}
                   </div>
                   <h3 
-                    className="font-semibold text-xl mb-3 text-[var(--color-tertiary)] hover:text-[var(--color-primary)] transition cursor-pointer"
+                    className="font-semibold text-lg sm:text-xl mb-2 sm:mb-3 text-[var(--color-tertiary)] hover:text-[var(--color-primary)] transition cursor-pointer"
                     onClick={() => router.push(`/questions/${question.id}`)}
                   >
                     {question.title}

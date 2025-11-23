@@ -90,9 +90,9 @@ export default function ChatbotPage() {
 
   return (
     <Layout>
-      <div className="mx-auto max-w-6xl p-6 h-full flex flex-col min-h-0">
-        <h1 className="text-2xl font-semibold mb-4 shrink-0">AI Chat</h1>
-        <div className="border rounded bg-white p-4 flex-1 min-h-0 overflow-y-auto">
+      <div className="mx-auto max-w-6xl p-3 sm:p-4 md:p-6 h-full flex flex-col min-h-0">
+        <h1 className="text-xl sm:text-2xl font-semibold mb-3 sm:mb-4 shrink-0">AI Chat</h1>
+        <div className="border rounded bg-white p-2 sm:p-3 md:p-4 flex-1 min-h-0 overflow-y-auto">
           {nextCursor && (
             <div className="mb-3 flex justify-center">
               <button className="text-sm text-emerald-700 underline" onClick={() => loadMore()}>
@@ -106,9 +106,9 @@ export default function ChatbotPage() {
             const align = isUser ? 'justify-end' : isAI ? 'justify-start' : 'justify-center';
             const bubble = isUser ? 'bg-blue-100 text-blue-900' : isAI ? 'bg-emerald-100 text-emerald-900' : 'bg-gray-100 text-gray-800';
             return (
-              <div key={i} className={`mb-3 flex ${align}`}>
-                <div className="max-w-[90%]">
-                  <div className="text-[10px] uppercase tracking-wide text-gray-400 mb-1">
+              <div key={i} className={`mb-2 sm:mb-3 flex ${align}`}>
+                <div className="max-w-[95%] sm:max-w-[90%]">
+                  <div className="text-[9px] sm:text-[10px] uppercase tracking-wide text-gray-400 mb-1">
                     {isUser ? 'You' : isAI ? 'AI' : 'System'} • {new Date(m.ts).toLocaleTimeString()}
                   </div>
                   {isAI ? (
@@ -124,15 +124,15 @@ export default function ChatbotPage() {
             );
           })}
         </div>
-        <div className="mt-3 flex gap-2 shrink-0">
+        <div className="mt-2 sm:mt-3 flex gap-1 sm:gap-2 shrink-0">
           <input
-            className="flex-1 border rounded px-3 py-2"
+            className="flex-1 border rounded px-2 sm:px-3 py-1.5 sm:py-2 text-sm sm:text-base"
             placeholder="Ask the AI..."
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') send(); }}
           />
-          <button className="px-4 py-2 bg-emerald-500 text-white rounded" onClick={send}>Send</button>
+          <button className="px-3 sm:px-4 py-1.5 sm:py-2 bg-emerald-500 text-white rounded text-sm sm:text-base" onClick={send}>Send</button>
         </div>
       </div>
     </Layout>

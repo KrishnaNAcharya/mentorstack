@@ -241,11 +241,11 @@ function SignupForm() {
   const roleInfo = getRoleInfo();
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 p-4">
-      <div className="w-full max-w-4xl bg-white rounded-2xl shadow-2xl overflow-hidden">
-        <div className="flex">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 p-2 sm:p-4">
+      <div className="w-full max-w-4xl bg-white rounded-xl sm:rounded-2xl shadow-2xl overflow-hidden">
+        <div className="flex flex-col md:flex-row">
           {/* Left Section - Progress & Info */}
-          <div className={`w-1/3 bg-gradient-to-br from-${roleInfo.color}-500 to-${roleInfo.color}-600 p-8 text-white`}>
+          <div className={`md:w-1/3 bg-gradient-to-br from-${roleInfo.color}-500 to-${roleInfo.color}-600 p-4 sm:p-6 md:p-8 text-white`}>
             <div className="mb-8">
               <div className="w-16 h-16 bg-white bg-opacity-20 rounded-xl flex items-center justify-center text-2xl mb-4">
                 {roleInfo.icon}
@@ -276,9 +276,9 @@ function SignupForm() {
           </div>
 
           {/* Right Section - Form */}
-          <div className="flex-1 p-8">
-            <div className="mb-8">
-              <h1 className="text-3xl font-bold text-slate-800 mb-2">
+          <div className="flex-1 p-4 sm:p-6 md:p-8">
+            <div className="mb-4 sm:mb-6 md:mb-8">
+              <h1 className="text-2xl sm:text-3xl font-bold text-slate-800 mb-2">
                 {step === 1 ? "Create Your Account" : "Complete Your Profile"}
               </h1>
               <p className="text-slate-600">
