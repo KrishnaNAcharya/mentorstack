@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { prisma } from "../../lib/prisma";
+import { prisma } from "../lib/prisma";
 import { generateWithGemini } from "../lib/gemini";
 
 const router = Router();

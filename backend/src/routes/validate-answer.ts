@@ -1,6 +1,6 @@
 import { Router, Request, Response } from "express";
 import { genAI } from "../lib/gemini";
-import { prisma } from "../../lib/prisma";
+import { prisma } from "../lib/prisma";
 
 const router = Router();
 
