@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { authAPI, Article, ArticlesResponse } from "../../lib/auth-api";
 import Layout from "../../components/Layout";
 
-export default function Articles() {
+function ArticlesContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const [articles, setArticles] = useState<Article[]>([]);
@@ -335,5 +335,19 @@ export default function Articles() {
                 </div>
             </div>
         </Layout>
+    );
+}
+
+export default function Articles() {
+    return (
+        <Suspense fallback={
+            <Layout>
+                <div className="flex justify-center items-center min-h-screen">
+                    <div className="text-slate-400">Loading articles...</div>
+                </div>
+            </Layout>
+        }>
+            <ArticlesContent />
+        </Suspense>
     );
 }
