@@ -1,5 +1,5 @@
 import express from 'express';
-import { prisma } from '../../../lib/prisma';
+import { prisma } from '../../lib/prisma';
 import { Role } from '@prisma/client';
 import { requireAdmin } from '../../middleware/adminAuth';
 

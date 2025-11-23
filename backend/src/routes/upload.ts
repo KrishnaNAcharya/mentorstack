@@ -1,6 +1,6 @@
 import express from 'express';
-import { uploadAvatar, deleteImage, extractPublicId } from '../../lib/cloudinary';
-import { prisma } from '../../lib/prisma';
+import { uploadAvatar, deleteImage, extractPublicId } from '../lib/cloudinary';
+import { prisma } from '../lib/prisma';
 import { authenticateToken } from '../middleware/authenticateToken';
 
 const router = express.Router();

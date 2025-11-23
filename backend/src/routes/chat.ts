@@ -2,7 +2,7 @@ import { Router } from 'express';
 import authenticateToken, { AuthenticatedRequest } from '../middleware/authenticateToken';
 import { publish } from '../realtime/rabbit';
 import { EXCHANGES } from '../realtime/constants';
-import { prisma } from '../../lib/prisma';
+import { prisma } from '../lib/prisma';
 
 export const chatRouter = Router();
 

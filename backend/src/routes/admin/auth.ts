@@ -1,7 +1,7 @@
 import express from 'express';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
-import { prisma } from '../../../lib/prisma';
+import { prisma } from '../../lib/prisma';
 import { Role } from '@prisma/client';
 import { requireAdmin } from '../../middleware/adminAuth';
 

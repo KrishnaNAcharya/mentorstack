@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { prisma } from '../../lib/prisma';
+import { prisma } from '../lib/prisma';
 import authenticateToken, { AuthenticatedRequest } from '../middleware/authenticateToken';
 
 export const aiRouter = Router();

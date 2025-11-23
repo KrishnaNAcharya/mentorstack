@@ -18,7 +18,7 @@ import similarQuestionsRoute from './routes/similar-questions';
 import validateAnswerRoute from './routes/validate-answer';
 import { createServer, IncomingMessage } from 'node:http';
 // inlined discussions connection handler to avoid import/init order issues
-import { prisma } from '../lib/prisma';
+import { prisma } from './lib/prisma';
 import { chatRouter } from './routes/chat';
 import WebSocket, { WebSocketServer, RawData } from 'ws';
 // Removed legacy parseUrl usage; rely on WHATWG URL API exclusively

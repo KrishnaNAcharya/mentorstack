@@ -1,7 +1,7 @@
 import WebSocket from 'ws';
 import url from 'url';
 import jwt from 'jsonwebtoken';
-import { prisma } from '../../lib/prisma';
+import { prisma } from '../lib/prisma';
 import { ROUTING_KEYS, EXCHANGES } from './constants';
 import { createEphemeralConsumer, publish } from './rabbit';
 import type { IncomingMessage } from 'http';

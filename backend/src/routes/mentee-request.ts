@@ -1,7 +1,7 @@
 import express from 'express';
 import jwt from 'jsonwebtoken';
-import { prisma } from '../../lib/prisma';
-import { awardReputation } from '../../lib/reputation';
+import { prisma } from '../lib/prisma';
+import { awardReputation } from '../lib/reputation';
 import { MentorshipStatus, Role } from '@prisma/client';
 
 const router = express.Router();

@@ -1,9 +1,9 @@
 import express from 'express';
-import { prisma } from '../../../lib/prisma';
+import { prisma } from '../../lib/prisma';
 import { requireAdmin } from '../../middleware/adminAuth';
 import multer from 'multer';
 import { CloudinaryStorage } from 'multer-storage-cloudinary';
-import { cloudinary } from '../../../lib/cloudinary';
+import { cloudinary } from '../../lib/cloudinary';
 
 const router = express.Router();
 

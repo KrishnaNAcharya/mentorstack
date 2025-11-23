@@ -1,5 +1,5 @@
 import jwt from 'jsonwebtoken';
-import { prisma } from '../../lib/prisma';
+import { prisma } from '../lib/prisma';
 import { Role } from '@prisma/client';
 
 export const requireAdmin = async (req: any, res: any, next: any) => {

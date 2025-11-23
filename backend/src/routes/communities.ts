@@ -1,10 +1,10 @@
 import express, { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import multer from 'multer';
-import { prisma } from '../../lib/prisma';
-import { awardReputation } from '../../lib/reputation';
+import { prisma } from '../lib/prisma';
+import { awardReputation } from '../lib/reputation';
 import { Role } from '@prisma/client';
-import { postImageStorage, deleteImage, extractPublicId } from '../../lib/cloudinary';
+import { postImageStorage, deleteImage, extractPublicId } from '../lib/cloudinary';
 
 const router = express.Router();
 
