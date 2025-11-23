@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -8,7 +8,7 @@ import { Article as APIArticle, authAPI, Tag } from '@/lib/auth-api';
 import Layout from '@/components/Layout';
 import { Eye, X, Plus } from 'lucide-react';
 
-export default function ArticlesPage() {
+function ArticlesPageContent() {
   const [articles, setArticles] = useState<APIArticle[]>([]);
   const [categories, setCategories] = useState<Tag[]>([]);
   const [loading, setLoading] = useState(true);
@@ -379,5 +379,19 @@ export default function ArticlesPage() {
         )}
       </div>
     </Layout>
+  );
+}
+
+export default function ArticlesPage() {
+  return (
+    <Suspense fallback={
+      <Layout>
+        <div className="flex justify-center items-center min-h-screen">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2" style={{ borderColor: 'var(--color-primary)' }}></div>
+        </div>
+      </Layout>
+    }>
+      <ArticlesPageContent />
+    </Suspense>
   );
 }

@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState, Suspense } from "react";
 import Layout from "../../components/Layout";
 import { Paperclip, Smile } from "lucide-react";
 import dynamic from "next/dynamic";
@@ -16,7 +16,7 @@ type Message = {
 // Dynamic import for emoji picker
 const EmojiPicker = dynamic(() => import("emoji-picker-react"), { ssr: false });
 
-const ChatsPage = () => {
+function ChatsPageContent() {
     const [message, setMessage] = useState("");
     const [showEmojiPicker, setShowEmojiPicker] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
@@ -242,6 +242,18 @@ const ChatsPage = () => {
             </div>
         </Layout>
     );
-};
+}
 
-export default ChatsPage;
+export default function ChatsPage() {
+    return (
+        <Suspense fallback={
+            <Layout>
+                <div className="flex justify-center items-center min-h-screen">
+                    <div className="text-gray-500">Loading chats...</div>
+                </div>
+            </Layout>
+        }>
+            <ChatsPageContent />
+        </Suspense>
+    );
+}
