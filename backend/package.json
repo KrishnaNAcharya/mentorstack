@@ -40,7 +40,7 @@
     "jsonwebtoken": "^9.0.2",
     "multer": "^2.0.2",
     "multer-storage-cloudinary": "^2.2.1",
-    "next": "^15.3.5",
+    "next": "15.3.8",
     "node-fetch": "^3.3.2",
     "ws": "^8.18.3"
   },
