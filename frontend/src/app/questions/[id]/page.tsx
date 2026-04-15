@@ -1007,9 +1007,9 @@ export default function QuestionDetailPage() {
 
                   {/* Code Editor Modal */}
                   {showCodeEditor && (
-                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
-                        <div className="flex items-center justify-between p-6 border-b border-gray-200">
+                    <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-50 p-4">
+                      <div className="w-full max-w-4xl max-h-[90vh] overflow-hidden rounded-2xl border border-white/45 bg-white/78 shadow-[0_24px_80px_rgba(2,6,23,0.55)] backdrop-blur-2xl">
+                        <div className="flex items-center justify-between p-6 border-b border-white/45 bg-white/45 backdrop-blur-md">
                           <div className="flex items-center space-x-3">
                             <Terminal className="w-6 h-6 text-blue-600" />
                             <h3 className="text-xl font-bold text-gray-900">
@@ -1018,7 +1018,7 @@ export default function QuestionDetailPage() {
                           </div>
                           <button
                             onClick={() => setShowCodeEditor(false)}
-                            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                            className="p-2 hover:bg-white/70 rounded-lg transition-colors"
                             title="Close code editor"
                             aria-label="Close code editor"
                           >
@@ -1278,17 +1278,19 @@ export default function QuestionDetailPage() {
 
       {/* Validation Modal */}
       {showValidationModal && validationResult && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-50 p-4">
+          <div className="max-w-2xl w-full max-h-[90vh] overflow-y-auto rounded-xl border border-white/45 bg-white/80 shadow-[0_24px_80px_rgba(2,6,23,0.55)] backdrop-blur-2xl">
             {/* Modal Header */}
-            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between rounded-t-xl">
+            <div className="sticky top-0 bg-white/55 backdrop-blur-md border-b border-white/45 px-6 py-4 flex items-center justify-between rounded-t-xl">
               <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
                 <Target className="w-6 h-6 text-emerald-600" />
                 Answer Validation Results
               </h3>
               <button
                 onClick={() => setShowValidationModal(false)}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                className="p-2 hover:bg-white/70 rounded-lg transition-colors"
+                title="Close validation results"
+                aria-label="Close validation results"
               >
                 <X className="w-5 h-5 text-gray-500" />
               </button>
@@ -1394,7 +1396,7 @@ export default function QuestionDetailPage() {
             </div>
 
             {/* Modal Footer */}
-            <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 px-6 py-4 rounded-b-xl">
+            <div className="sticky bottom-0 bg-white/55 backdrop-blur-md border-t border-white/45 px-6 py-4 rounded-b-xl">
               <button
                 onClick={() => setShowValidationModal(false)}
                 className="w-full px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg font-medium transition-colors"

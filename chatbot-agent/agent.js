@@ -1,18 +1,68 @@
-import 'dotenv/config';
+import dotenv from 'dotenv';
 import amqp from 'amqplib';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import axios from 'axios';
 import http from 'http';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Load chatbot-agent env first.
+dotenv.config({ path: path.resolve(__dirname, '.env') });
+
+// Import only GEMINI_API_KEY from backend env so we share the same key
+// without accidentally overriding chatbot-specific vars like PORT.
+const backendEnv = dotenv.config({ path: path.resolve(__dirname, '../backend/.env') });
+if (backendEnv?.parsed?.GEMINI_API_KEY) {
+  process.env.GEMINI_API_KEY = backendEnv.parsed.GEMINI_API_KEY;
+}
 
 const RABBITMQ_URL = process.env.RABBITMQ_URL || 'amqp://localhost';
-const PORT = process.env.PORT || 10000;
+const PORT = Number(process.env.CHATBOT_AGENT_PORT || process.env.AGENT_PORT || 10000);
 const DIRECT_EXCHANGE = process.env.DIRECT_EXCHANGE || 'direct-exchange';
 const USER_QUESTIONS_QUEUE = process.env.USER_QUESTIONS_QUEUE || 'user-questions-queue';
 const AI_QUESTION_ROUTING_KEY = process.env.AI_QUESTION_ROUTING_KEY || 'ai-question';
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+if (!GEMINI_API_KEY) {
+  throw new Error('GEMINI_API_KEY is missing for chatbot-agent');
+}
+
+const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:5000';
 const AGENT_TOKEN = process.env.AGENT_TOKEN || '';
+const GEMINI_MODELS = ['gemini-2.5-flash-lite', 'gemini-1.5-flash'];
+
+async function generateAnswer(question) {
+  let lastError = null;
+
+  for (const modelName of GEMINI_MODELS) {
+    try {
+      const model = genAI.getGenerativeModel({ model: modelName });
+      const result = await model.generateContent(question);
+      const response = await result.response;
+      const answer = response.text();
+      if (answer && answer.trim()) {
+        return answer.trim();
+      }
+    } catch (err) {
+      lastError = err;
+      console.error(`Gemini model failed (${modelName})`, err?.message || err);
+    }
+  }
+
+  throw lastError || new Error('No Gemini model produced a response');
+}
+
+function publishAiReply(ch, userId, answer) {
+  const routingKey = `bot-reply.${userId}`;
+  const message = { type: 'ai.reply', userId, answer, timestamp: new Date().toISOString() };
+  ch.publish(DIRECT_EXCHANGE, routingKey, Buffer.from(JSON.stringify(message)), {
+    contentType: 'application/json', persistent: false,
+  });
+}
 
 async function ensureTopology(ch) {
   await ch.assertExchange(DIRECT_EXCHANGE, 'direct', { durable: true });
@@ -21,16 +71,14 @@ async function ensureTopology(ch) {
 }
 
 async function handleQuestion(ch, msg) {
+  let userId = null;
   try {
     const payload = JSON.parse(msg.content.toString());
-    const { userId, question } = payload;
+    userId = Number(payload?.userId);
+    const question = payload?.question;
     if (!userId || !question) throw new Error('Invalid payload');
 
-    // Call Gemini
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-lite' });
-    const result = await model.generateContent(question);
-    const response = await result.response;
-    const answer = response.text();
+    const answer = await generateAnswer(question);
 
     // Log to DB via backend API (decoupled from Prisma)
     try {
@@ -46,17 +94,22 @@ async function handleQuestion(ch, msg) {
       // continue; logging failure should not prevent user reply
     }
 
-    // Publish reply
-    const routingKey = `bot-reply.${userId}`;
-    const message = { type: 'ai.reply', userId, answer, timestamp: new Date().toISOString() };
-    ch.publish(DIRECT_EXCHANGE, routingKey, Buffer.from(JSON.stringify(message)), {
-      contentType: 'application/json', persistent: false,
-    });
+    // Publish reply to websocket subscribers on backend
+    publishAiReply(ch, userId, answer);
 
     ch.ack(msg);
   } catch (e) {
     console.error('Failed to process message', e);
-    ch.nack(msg, false, false); // discard bad message
+    // Always respond so frontend is never stuck waiting forever.
+    if (userId) {
+      const fallback = "Sorry, I'm having trouble generating a response right now. Please try again in a moment.";
+      try {
+        publishAiReply(ch, userId, fallback);
+      } catch (publishErr) {
+        console.error('Failed to publish fallback AI reply', publishErr);
+      }
+    }
+    ch.ack(msg);
   }
 }
 

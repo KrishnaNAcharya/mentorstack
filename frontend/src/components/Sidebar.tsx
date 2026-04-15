@@ -27,10 +27,20 @@ const Sidebar = ({
 
   useEffect(() => {
     async function fetchUserRole() {
+      if (!authAPI.isAuthenticated()) {
+        setUserRole(null);
+        return;
+      }
+
       try {
         const response = await authAPI.getCurrentUser();
         setUserRole(response.user.role);
       } catch (error) {
+        setUserRole(null);
+        const message = error instanceof Error ? error.message : '';
+        if (message && (message.includes('Token is not valid') || message.includes('No token') || message.includes('Not authenticated'))) {
+          return;
+        }
         console.error('Failed to fetch user role:', error);
       }
     }

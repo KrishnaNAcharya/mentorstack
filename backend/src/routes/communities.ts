@@ -11,6 +11,23 @@ const router = express.Router();
 // Configure multer to use Cloudinary storage for post images
 const upload = multer({ storage: postImageStorage });
 
+const uploadPostImages = (req: any, res: any, next: any) => {
+  upload.array('images', 5)(req, res, (err: any) => {
+    if (err) {
+      console.error('Community post image upload error:', err);
+      return res.status(400).json({
+        error: 'Image upload failed',
+        details: err.message || 'Invalid image upload request',
+      });
+    }
+    next();
+  });
+};
+
+const getUploadedImageUrl = (file: any): string | null => {
+  return file?.path || file?.secure_url || file?.url || null;
+};
+
 // Extend Request type to include user
 interface AuthenticatedRequest extends Request {
   user?: {
@@ -438,7 +455,7 @@ router.delete('/:id/leave', authenticateToken, async (req: any, res: any) => {
 });
 
 // Create a post in a community
-router.post('/:id/posts', authenticateToken, upload.array('images', 5), async (req: any, res: any) => {
+router.post('/:id/posts', authenticateToken, uploadPostImages, async (req: any, res: any) => {
   try {
     const { id } = req.params;
     const { title, content, tags } = req.body;
@@ -467,7 +484,8 @@ router.post('/:id/posts', authenticateToken, upload.array('images', 5), async (r
     const imageUrls: string[] = [];
     if (req.files && Array.isArray(req.files)) {
       for (const file of req.files) {
-        imageUrls.push(file.path); // file.path contains the Cloudinary URL
+        const imageUrl = getUploadedImageUrl(file);
+        if (imageUrl) imageUrls.push(imageUrl);
       }
     }
 
@@ -623,7 +641,7 @@ router.get('/:id/posts', async (req: any, res: any) => {
 });
 
 // Update a community post (only author can update)
-router.put('/:communityId/posts/:postId', authenticateToken, upload.array('images', 5), async (req: any, res: any) => {
+router.put('/:communityId/posts/:postId', authenticateToken, uploadPostImages, async (req: any, res: any) => {
   try {
     const { communityId, postId } = req.params;
     const { title, content, tags, existingImageUrls } = req.body;
@@ -700,7 +718,8 @@ router.put('/:communityId/posts/:postId', authenticateToken, upload.array('image
     // Add newly uploaded images from Cloudinary
     if (req.files && Array.isArray(req.files)) {
       for (const file of req.files) {
-        finalImageUrls.push(file.path); // file.path contains the Cloudinary URL
+        const imageUrl = getUploadedImageUrl(file);
+        if (imageUrl) finalImageUrls.push(imageUrl);
       }
     }
 

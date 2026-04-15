@@ -3,6 +3,9 @@ import { v2 as cloudinary } from 'cloudinary';
 import CloudinaryStorage from 'multer-storage-cloudinary';
 import multer from 'multer';
 
+// multer-storage-cloudinary@2 expects an object with shape { v2: cloudinaryClient }
+const cloudinaryForStorage = { v2: cloudinary };
+
 // Validate Cloudinary credentials
 if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
   console.error('⚠️  WARNING: Cloudinary credentials are not set in environment variables!');
@@ -18,45 +21,39 @@ cloudinary.config({
 
 // Storage configuration for avatars
 export const avatarStorage = new CloudinaryStorage({
-  cloudinary: cloudinary,
-  params: {
-    folder: 'mentorstack/avatars',
-    allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'webp'],
-    transformation: [
-      { width: 500, height: 500, crop: 'fill', gravity: 'face' },
-      { quality: 'auto' }
-    ],
-    public_id: (req: any, file: any) => `avatar_${Date.now()}_${Math.random().toString(36).substring(7)}`
-  } as any
-});
+  cloudinary: cloudinaryForStorage,
+  folder: 'mentorstack/avatars',
+  allowedFormats: ['jpg', 'jpeg', 'png', 'gif', 'webp'],
+  transformation: [
+    { width: 500, height: 500, crop: 'fill', gravity: 'face' },
+    { quality: 'auto' }
+  ],
+  filename: (_req: any, _file: any, cb: any) => cb(undefined, `avatar_${Date.now()}_${Math.random().toString(36).substring(7)}`),
+} as any);
 
 // Storage configuration for article images
 export const articleImageStorage = new CloudinaryStorage({
-  cloudinary: cloudinary,
-  params: {
-    folder: 'mentorstack/articles',
-    allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'webp'],
-    transformation: [
-      { width: 1200, height: 800, crop: 'limit' },
-      { quality: 'auto', fetch_format: 'auto' }
-    ],
-    public_id: (req: any, file: any) => `article_${Date.now()}_${Math.random().toString(36).substring(7)}`
-  } as any
-});
+  cloudinary: cloudinaryForStorage,
+  folder: 'mentorstack/articles',
+  allowedFormats: ['jpg', 'jpeg', 'png', 'gif', 'webp'],
+  transformation: [
+    { width: 1200, height: 800, crop: 'limit' },
+    { quality: 'auto', fetch_format: 'auto' }
+  ],
+  filename: (_req: any, _file: any, cb: any) => cb(undefined, `article_${Date.now()}_${Math.random().toString(36).substring(7)}`),
+} as any);
 
 // Storage configuration for community post images
 export const postImageStorage = new CloudinaryStorage({
-  cloudinary: cloudinary,
-  params: {
-    folder: 'mentorstack/posts',
-    allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'webp'],
-    transformation: [
-      { width: 1200, height: 800, crop: 'limit' },
-      { quality: 'auto', fetch_format: 'auto' }
-    ],
-    public_id: (req: any, file: any) => `post_${Date.now()}_${Math.random().toString(36).substring(7)}`
-  } as any
-});
+  cloudinary: cloudinaryForStorage,
+  folder: 'mentorstack/posts',
+  allowedFormats: ['jpg', 'jpeg', 'png', 'gif', 'webp'],
+  transformation: [
+    { width: 1200, height: 800, crop: 'limit' },
+    { quality: 'auto', fetch_format: 'auto' }
+  ],
+  filename: (_req: any, _file: any, cb: any) => cb(undefined, `post_${Date.now()}_${Math.random().toString(36).substring(7)}`),
+} as any);
 
 // Create multer instances for different upload types
 export const uploadAvatar = multer({

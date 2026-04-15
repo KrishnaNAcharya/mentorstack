@@ -114,8 +114,8 @@ export default function PostPage() {
 
     setIsSubmitting(true);
     try {
-      // Use FormData only if there are new images or existing images, otherwise use JSON
-      if (editImages.length > 0 || existingImageUrls.length > 0) {
+      // Use multipart only when new image files are being uploaded.
+      if (editImages.length > 0) {
         const formData = new FormData();
         formData.append('title', editTitle.trim());
         formData.append('content', editContent.trim());
@@ -130,11 +130,12 @@ export default function PostPage() {
         const updatedPost = await authAPI.updateCommunityPost(parseInt(communityId), post.id, formData);
         setPost(updatedPost);
       } else {
-        // No images at all, send as JSON
+        // Text/tag updates (and existing image retention/removal) via JSON
         const updatedPost = await authAPI.updateCommunityPost(parseInt(communityId), post.id, {
           title: editTitle.trim(),
           content: editContent.trim(),
-          tags: editTags
+          tags: editTags,
+          existingImageUrls,
         });
         setPost(updatedPost);
       }

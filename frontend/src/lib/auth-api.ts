@@ -1,5 +1,12 @@
 // API service for authentication
-const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+const FALLBACK_DEPLOYED_BACKEND_URL = 'https://mentorstack-backend.onrender.com';
+const isLocalFrontendHost =
+  typeof window !== 'undefined' &&
+  ['localhost', '127.0.0.1'].includes(window.location.hostname);
+
+const BACKEND_URL = isLocalFrontendHost
+  ? 'http://localhost:5000'
+  : (process.env.NEXT_PUBLIC_API_URL || FALLBACK_DEPLOYED_BACKEND_URL);
 const API_BASE_URL = `${BACKEND_URL}/api`;
 
 export interface SignupData {
@@ -15,6 +22,11 @@ export interface SignupData {
 export interface LoginData {
   email: string;
   password: string;
+}
+
+export interface ForgotPasswordResponse {
+  message: string;
+  resetUrl?: string;
 }
 
 export interface User {
@@ -455,14 +467,52 @@ class AuthAPI {
     return result;
   }
 
+  async requestPasswordReset(email: string): Promise<ForgotPasswordResponse> {
+    const response = await fetch(`${API_BASE_URL}/auth/forgot-password`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+      body: JSON.stringify({ email }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to request password reset');
+    }
+
+    return response.json();
+  }
+
+  async resetPassword(token: string, password: string): Promise<{ message: string }> {
+    const response = await fetch(`${API_BASE_URL}/auth/reset-password`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+      body: JSON.stringify({ token, password }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to reset password');
+    }
+
+    return response.json();
+  }
+
   async getCurrentUser(): Promise<UserResponse> {
+    const token = this.getToken();
+    if (!token) {
+      throw new Error('Not authenticated');
+    }
+
     const response = await fetch(`${API_BASE_URL}/auth/me`, {
       method: 'GET',
       headers: this.getHeaders(true),
     });
 
     if (!response.ok) {
-      const error = await response.json();
+      const error = await response.json().catch(() => ({}));
+      if (response.status === 401) {
+        localStorage.removeItem('authToken');
+      }
       throw new Error(error.message || 'Failed to get user data');
     }
 
@@ -1150,18 +1200,22 @@ class AuthAPI {
     return response.json();
   }
 
-  async updateCommunityPost(communityId: number, postId: number, data: { title: string; content: string; tags?: string[] } | FormData): Promise<CommunityPost> {
+  async updateCommunityPost(communityId: number, postId: number, data: { title: string; content: string; tags?: string[]; existingImageUrls?: string[] } | FormData): Promise<CommunityPost> {
     const isFormData = data instanceof FormData;
-    
-    const response = await fetch(`${API_BASE_URL}/communities/${communityId}/posts/${postId}`, {
-      method: 'PUT',
-      headers: this.getHeaders(true, !isFormData), // Don't include Content-Type for FormData
-      body: isFormData ? data : JSON.stringify(data),
-    });
+    let response: Response;
+    try {
+      response = await fetch(`${API_BASE_URL}/communities/${communityId}/posts/${postId}`, {
+        method: 'PUT',
+        headers: this.getHeaders(true, !isFormData), // Don't include Content-Type for FormData
+        body: isFormData ? data : JSON.stringify(data),
+      });
+    } catch {
+      throw new Error(`Unable to reach the server at ${API_BASE_URL}. Please try again in a moment.`);
+    }
 
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'Failed to update post');
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || error.message || 'Failed to update post');
     }
 
     return response.json();
@@ -1294,14 +1348,22 @@ class AuthAPI {
     return response.json();
   }
 
-  async updateArticle(articleId: number, formData: FormData): Promise<{ message: string; article: Article }> {
-    const response = await fetch(`${API_BASE_URL}/articles/${articleId}`, {
-      method: 'PUT',
-      headers: {
-        'Authorization': `Bearer ${this.getToken()}`,
-      },
-      body: formData,
-    });
+  async updateArticle(articleId: number, data: FormData | { title: string; content: string; tags?: string[]; existingImageUrls?: string[] }): Promise<{ message: string; article: Article }> {
+    const isFormData = data instanceof FormData;
+    let response: Response;
+    try {
+      response = await fetch(`${API_BASE_URL}/articles/${articleId}`, {
+        method: 'PUT',
+        headers: isFormData
+          ? {
+              'Authorization': `Bearer ${this.getToken()}`,
+            }
+          : this.getHeaders(true),
+        body: isFormData ? data : JSON.stringify(data),
+      });
+    } catch {
+      throw new Error(`Unable to reach the server at ${API_BASE_URL}. Please try again in a moment.`);
+    }
 
     if (!response.ok) {
       const error = await response.json();

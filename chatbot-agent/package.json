@@ -4,8 +4,8 @@
   "type": "module",
   "main": "agent.js",
   "scripts": {
-    "dev": "node -r dotenv/config agent.js dotenv_config_path=.env",
-    "start": "node -r dotenv/config agent.js dotenv_config_path=.env"
+    "dev": "node agent.js",
+    "start": "node agent.js"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
