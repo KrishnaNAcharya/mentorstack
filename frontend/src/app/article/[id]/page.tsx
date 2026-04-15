@@ -292,26 +292,43 @@ export default function ArticleView() {
                             borderColor: 'var(--color-surface-dark)'
                         }}
                     >
-                        {/* Featured Image with Preview */}
+                        {/* Featured Images with Preview (up to 3) */}
                         {article.imageUrls && article.imageUrls.length > 0 && (
-                            <div 
-                                className="relative h-64 md:h-80 cursor-pointer group"
-                                onClick={() => setPreviewImage(article.imageUrls![0])}
-                            >
-                                <Image
-                                    src={article.imageUrls[0]}
-                                    alt={article.title}
-                                    fill
-                                    className="object-cover"
-                                />
-                                <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
-                                {/* Hover overlay for image preview */}
-                                <div className="absolute inset-0  group-hover:bg-opacity-40 transition-all duration-300 flex items-center justify-center">
-                                    <div className="transform scale-0 group-hover:scale-100 transition-transform duration-200">
-                                        <Eye className="w-12 h-12 text-white drop-shadow-lg" />
-                                        <p className="text-white text-sm font-semibold mt-2 text-center">Click to preview</p>
-                                    </div>
-                                </div>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-2 bg-black/5 p-2">
+                                {article.imageUrls.slice(0, 3).map((imageUrl, index) => {
+                                    const remainingCount = article.imageUrls.length - 3;
+                                    const showRemainingBadge = index === 2 && remainingCount > 0;
+
+                                    return (
+                                        <div
+                                            key={`${imageUrl}-${index}`}
+                                            className={`relative cursor-pointer group overflow-hidden rounded-md ${
+                                                index === 0 ? 'h-64 md:h-80 md:col-span-2' : 'h-40 md:h-80'
+                                            }`}
+                                            onClick={() => setPreviewImage(imageUrl)}
+                                        >
+                                            <Image
+                                                src={imageUrl}
+                                                alt={`${article.title} image ${index + 1}`}
+                                                fill
+                                                className="object-cover"
+                                            />
+                                            <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+                                            <div className="absolute inset-0 group-hover:bg-black/20 transition-all duration-300 flex items-center justify-center">
+                                                <div className="transform scale-0 group-hover:scale-100 transition-transform duration-200">
+                                                    <Eye className="w-12 h-12 text-white drop-shadow-lg" />
+                                                    <p className="text-white text-sm font-semibold mt-2 text-center">Click to preview</p>
+                                                </div>
+                                            </div>
+
+                                            {showRemainingBadge && (
+                                                <div className="absolute top-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded-full">
+                                                    +{remainingCount} more
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
                             </div>
                         )}
 
