@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { authAPI } from "@/lib/auth-api";
 import gsap from "gsap";
 
@@ -115,12 +116,12 @@ export default function LoginPage() {
                   className="w-full p-4 rounded-xl border-2 border-slate-200 bg-slate-50 focus:outline-none focus:border-emerald-500 focus:bg-white transition"
                   required
                 />
-                <a
-                  href="#"
+                <Link
+                  href="/forgot-password"
                   className="text-primary text-sm font-medium float-right mt-2 hover:underline"
                 >
                   Forgot password?
-                </a>
+                </Link>
               </div>
 
               <button
@@ -150,19 +151,6 @@ export default function LoginPage() {
               </div>
             </div>
           )}
-
-          {/* Divider */}
-          <div className="relative my-8 text-center text-slate-400">
-            <span className="bg-white px-4 relative z-10">or continue with</span>
-            <div className="absolute left-0 top-1/2 w-full h-px bg-slate-200 -z-0" />
-          </div>
-
-          {/* Social Buttons */}
-          <div className="flex gap-4">
-            <button className="flex-1 py-3 border-2 border-slate-200 rounded-xl flex items-center justify-center gap-2 hover:border-[#06a395] hover:bg-emerald-50 transition">
-              <span className="text-slate-700 font-medium">Google</span>
-            </button>
-          </div>
         </div>
 
         {/* Right Section - Branding */}

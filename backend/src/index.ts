@@ -1,6 +1,6 @@
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import authRoutes from './middleware/auth';
 import { menteesRouter } from './routes/mentees';
 import { communitiesRouter } from './routes/communities';
@@ -44,17 +44,19 @@ import adminTagsRouter from './routes/admin/tags';
 import adminMentorshipRouter from './routes/admin/mentorship';
 import adminBadgesRouter from './routes/admin/badges';
 import adminReputationRouter from './routes/admin/reputation';
-// Load environment variables
-dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Middleware
 const allowedOrigins = process.env.CORS_ORIGIN?.split(',').map(o => o.trim()) || ['http://localhost:3000'];
+
+const isDevLocalOrigin = (origin: string) => /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+const isVercelPreviewOrigin = (origin: string) => /^https:\/\/([a-z0-9-]+\.)*vercel\.app$/.test(origin);
+
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
+    if (!origin || allowedOrigins.includes(origin) || isDevLocalOrigin(origin) || isVercelPreviewOrigin(origin)) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
@@ -114,6 +116,8 @@ app.get('/', (req, res) => {
       '/api/health', 
       '/api/auth/signup', 
       '/api/auth/login', 
+      '/api/auth/forgot-password',
+      '/api/auth/reset-password',
       '/api/auth/me',
       '/api/mentees',
       '/api/mentees/profile/me',

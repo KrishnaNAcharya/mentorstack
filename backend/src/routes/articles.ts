@@ -11,6 +11,23 @@ const router = express.Router();
 // Configure multer to use Cloudinary storage for article images
 const upload = multer({ storage: articleImageStorage });
 
+const uploadArticleImages = (req: any, res: any, next: any) => {
+  upload.array('images', 5)(req, res, (err: any) => {
+    if (err) {
+      console.error('Article image upload error:', err);
+      return res.status(400).json({
+        message: 'Image upload failed',
+        details: err.message || 'Invalid image upload request',
+      });
+    }
+    next();
+  });
+};
+
+const getUploadedImageUrl = (file: any): string | null => {
+  return file?.path || file?.secure_url || file?.url || null;
+};
+
 // Middleware to verify JWT token
 const authenticateToken = (req: any, res: any, next: any) => {
   const authHeader = req.headers['authorization'];
@@ -247,7 +264,7 @@ router.get('/:id', async (req: any, res: any) => {
 });
 
 // Create a new article (all authenticated users can create)
-router.post('/', authenticateToken, upload.array('images', 5), async (req: any, res: any) => {
+router.post('/', authenticateToken, uploadArticleImages, async (req: any, res: any) => {
   try {
     const { title, content, tags } = req.body;
     const userId = req.user.userId;
@@ -261,8 +278,8 @@ router.post('/', authenticateToken, upload.array('images', 5), async (req: any, 
     const imageUrls: string[] = [];
     if (req.files && Array.isArray(req.files)) {
       for (const file of req.files) {
-        // Cloudinary automatically uploads and provides the URL
-        imageUrls.push(file.path); // file.path contains the Cloudinary URL
+        const imageUrl = getUploadedImageUrl(file);
+        if (imageUrl) imageUrls.push(imageUrl);
       }
     }
 
@@ -427,7 +444,7 @@ router.post('/:id/vote', authenticateToken, async (req: any, res: any) => {
 });
 
 // Update an article (only by author)
-router.put('/:id', authenticateToken, upload.array('images', 5), async (req: any, res: any) => {
+router.put('/:id', authenticateToken, uploadArticleImages, async (req: any, res: any) => {
   try {
     const articleId = parseInt(req.params.id);
     const { title, content, tags, existingImageUrls } = req.body;
@@ -489,9 +506,8 @@ router.put('/:id', authenticateToken, upload.array('images', 5), async (req: any
     // Add newly uploaded images (Cloudinary URLs)
     if (req.files && Array.isArray(req.files)) {
       for (const file of req.files) {
-        // Cloudinary multer returns the secure_url in file.path
-        const imageUrl = (file as any).path;
-        imageUrls.push(imageUrl);
+        const imageUrl = getUploadedImageUrl(file);
+        if (imageUrl) imageUrls.push(imageUrl);
       }
     }
 

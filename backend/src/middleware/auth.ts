@@ -1,10 +1,30 @@
 import express from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { createHash, randomBytes } from 'crypto';
 import { prisma } from '../lib/prisma';
 import { Role } from '@prisma/client';
 
 const router = express.Router();
+const RESET_TOKEN_EXPIRY_MS = 60 * 60 * 1000; // 1 hour
+
+function hashResetToken(token: string): string {
+    return createHash('sha256').update(token).digest('hex');
+}
+
+function getFrontendBaseUrl(): string {
+    const configured = process.env.FRONTEND_URL?.trim();
+    if (configured) {
+        return configured.replace(/\/$/, '');
+    }
+
+    const firstCorsOrigin = process.env.CORS_ORIGIN
+        ?.split(',')
+        .map((origin) => origin.trim())
+        .find(Boolean);
+
+    return (firstCorsOrigin || 'http://localhost:3000').replace(/\/$/, '');
+}
 
 // Signup route
 router.post('/signup', async (req: any, res: any) => {
@@ -144,6 +164,108 @@ router.post('/login', async (req: any, res: any) => {
     } catch (error) {
         console.error('Login error:', error);
         res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// Forgot password route
+router.post('/forgot-password', async (req: any, res: any) => {
+    try {
+        const { email } = req.body;
+
+        if (!email || typeof email !== 'string') {
+            return res.status(400).json({ message: 'Email is required' });
+        }
+
+        const normalizedEmail = email.trim();
+        const safeMessage = 'If an account exists with that email, a reset link has been sent.';
+
+        const user = await prisma.user.findFirst({
+            where: {
+                email: {
+                    equals: normalizedEmail,
+                    mode: 'insensitive'
+                }
+            },
+            select: { id: true, email: true, name: true }
+        });
+
+        // Prevent email enumeration by returning same success response.
+        if (!user) {
+            return res.json({ message: safeMessage });
+        }
+
+        const resetToken = randomBytes(32).toString('hex');
+        const resetTokenHash = hashResetToken(resetToken);
+        const resetTokenExpiresAt = new Date(Date.now() + RESET_TOKEN_EXPIRY_MS);
+
+        await prisma.user.update({
+            where: { id: user.id },
+            data: {
+                passwordResetToken: resetTokenHash,
+                passwordResetExpiresAt: resetTokenExpiresAt
+            }
+        });
+
+        const resetUrl = `${getFrontendBaseUrl()}/reset-password?token=${encodeURIComponent(resetToken)}`;
+
+        // TODO: Replace with email provider integration in production.
+        console.log(`🔐 Password reset link for ${user.email}: ${resetUrl}`);
+
+        if (process.env.NODE_ENV === 'development') {
+            return res.json({ message: safeMessage, resetUrl });
+        }
+
+        return res.json({ message: safeMessage });
+    } catch (error) {
+        console.error('Forgot password error:', error);
+        return res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// Reset password route
+router.post('/reset-password', async (req: any, res: any) => {
+    try {
+        const { token, password } = req.body;
+
+        if (!token || typeof token !== 'string') {
+            return res.status(400).json({ message: 'Reset token is required' });
+        }
+
+        if (!password || typeof password !== 'string' || password.length < 8) {
+            return res.status(400).json({ message: 'Password must be at least 8 characters long' });
+        }
+
+        const hashedToken = hashResetToken(token);
+
+        const user = await prisma.user.findFirst({
+            where: {
+                passwordResetToken: hashedToken,
+                passwordResetExpiresAt: {
+                    gt: new Date()
+                }
+            },
+            select: { id: true }
+        });
+
+        if (!user) {
+            return res.status(400).json({ message: 'Invalid or expired reset token' });
+        }
+
+        const hashedPassword = await bcrypt.hash(password, 12);
+
+        await prisma.user.update({
+            where: { id: user.id },
+            data: {
+                password: hashedPassword,
+                passwordResetToken: null,
+                passwordResetExpiresAt: null
+            }
+        });
+
+        return res.json({ message: 'Password reset successful. You can now log in.' });
+    } catch (error) {
+        console.error('Reset password error:', error);
+        return res.status(500).json({ message: 'Server error' });
     }
 });
 

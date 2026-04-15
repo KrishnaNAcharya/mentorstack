@@ -130,18 +130,27 @@ export default function ArticleView() {
 
         setIsSubmitting(true);
         try {
-            const formData = new FormData();
-            formData.append('title', editTitle.trim());
-            formData.append('content', editContent.trim());
-            formData.append('existingImageUrls', JSON.stringify(existingImageUrls));
-            formData.append('tags', JSON.stringify(editTags));
+            if (editImages.length > 0) {
+                const formData = new FormData();
+                formData.append('title', editTitle.trim());
+                formData.append('content', editContent.trim());
+                formData.append('existingImageUrls', JSON.stringify(existingImageUrls));
+                formData.append('tags', JSON.stringify(editTags));
 
-            // Add new images
-            editImages.forEach((image) => {
-                formData.append('images', image);
-            });
+                // Add new images
+                editImages.forEach((image) => {
+                    formData.append('images', image);
+                });
 
-            await authAPI.updateArticle(article.id, formData);
+                await authAPI.updateArticle(article.id, formData);
+            } else {
+                await authAPI.updateArticle(article.id, {
+                    title: editTitle.trim(),
+                    content: editContent.trim(),
+                    tags: editTags,
+                    existingImageUrls,
+                });
+            }
             
             // Reload article to show updates
             await fetchArticle();
