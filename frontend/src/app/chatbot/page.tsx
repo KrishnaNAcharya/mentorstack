@@ -24,11 +24,8 @@ export default function ChatbotPage() {
   const [pendingAiMessageId, setPendingAiMessageId] = useState<string | null>(null);
   const [isLoadingOlder, setIsLoadingOlder] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
+  const reconnectTimerRef = useRef<number | null>(null);
   const streamTimerRef = useRef<number | null>(null);
-  const historyPollTimerRef = useRef<number | null>(null);
-  const pendingTimeoutRef = useRef<number | null>(null);
-  const pendingQuestionRef = useRef<string | null>(null);
-  const requestStartedAtRef = useRef<number>(0);
   const messagesContainerRef = useRef<HTMLDivElement | null>(null);
   const pendingAiMessageIdRef = useRef<string | null>(null);
   const { items: historyItems, loadMore, nextCursor } = useAiHistory(50);
@@ -44,19 +41,14 @@ export default function ChatbotPage() {
     }
   }, []);
 
-  const clearPendingTimers = useCallback(() => {
-    if (historyPollTimerRef.current !== null) {
-      window.clearInterval(historyPollTimerRef.current);
-      historyPollTimerRef.current = null;
-    }
-    if (pendingTimeoutRef.current !== null) {
-      window.clearTimeout(pendingTimeoutRef.current);
-      pendingTimeoutRef.current = null;
+  const clearReconnectTimer = useCallback(() => {
+    if (reconnectTimerRef.current !== null) {
+      window.clearTimeout(reconnectTimerRef.current);
+      reconnectTimerRef.current = null;
     }
   }, []);
 
   const streamAIResponse = useCallback((messageId: string, fullText: string) => {
-    clearPendingTimers();
     clearStreamTimer();
 
     const safeText = fullText?.trim() || 'I could not generate a response.';
@@ -90,83 +82,9 @@ export default function ChatbotPage() {
         setIsAwaitingAi(false);
         setPendingAiMessageId(null);
         pendingAiMessageIdRef.current = null;
-        pendingQuestionRef.current = null;
-        requestStartedAtRef.current = 0;
       }
     }, 35);
-  }, [clearPendingTimers, clearStreamTimer]);
-
-  const startReplyFailSafe = useCallback((thinkingId: string) => {
-    clearPendingTimers();
-
-    historyPollTimerRef.current = window.setInterval(async () => {
-      const pendingId = pendingAiMessageIdRef.current;
-      const question = pendingQuestionRef.current;
-      const startedAt = requestStartedAtRef.current;
-      if (!pendingId || !question || !startedAt) return;
-
-      try {
-        const authToken = authAPI.getToken();
-        if (!authToken) return;
-
-        const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-        const response = await fetch(`${backendUrl}/api/ai/history?limit=20`, {
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${authToken}`,
-          },
-          cache: 'no-store',
-        });
-        if (!response.ok) return;
-
-        const data = await response.json();
-        const items = Array.isArray(data?.items) ? data.items : [];
-
-        const matched = items.find((item: any) => {
-          const prompt = String(item?.prompt || '').trim().toLowerCase();
-          const ts = Date.parse(String(item?.timestamp || ''));
-          return (
-            prompt === question.trim().toLowerCase() &&
-            Number.isFinite(ts) &&
-            ts >= startedAt - 5000 &&
-            typeof item?.response === 'string' &&
-            item.response.trim().length > 0
-          );
-        });
-
-        if (matched && pendingAiMessageIdRef.current) {
-          streamAIResponse(pendingAiMessageIdRef.current, String(matched.response));
-        }
-      } catch {
-        // Keep polling quietly until timeout.
-      }
-    }, 2000);
-
-    pendingTimeoutRef.current = window.setTimeout(() => {
-      if (pendingAiMessageIdRef.current !== thinkingId) return;
-
-      clearPendingTimers();
-      clearStreamTimer();
-      setIsAwaitingAi(false);
-      setPendingAiMessageId(null);
-      pendingAiMessageIdRef.current = null;
-      pendingQuestionRef.current = null;
-      requestStartedAtRef.current = 0;
-
-      setMessages((prev) =>
-        prev.map((msg) =>
-          msg.id === thinkingId
-            ? {
-                ...msg,
-                role: 'system',
-                text: 'AI is taking too long to respond. Please try again.',
-                status: 'done',
-              }
-            : msg
-        )
-      );
-    }, 30000);
-  }, [clearPendingTimers, clearStreamTimer, streamAIResponse]);
+  }, [clearStreamTimer]);
 
   const scrollToBottom = useCallback(() => {
     const container = messagesContainerRef.current;
@@ -201,9 +119,10 @@ export default function ChatbotPage() {
   useEffect(() => {
     return () => {
       clearStreamTimer();
-      clearPendingTimers();
+      clearReconnectTimer();
+      wsRef.current?.close();
     };
-  }, [clearPendingTimers, clearStreamTimer]);
+  }, [clearReconnectTimer, clearStreamTimer]);
 
   // Seed messages with AI history (prompt then response, oldest first)
   const mappedHistory = useMemo(() => {
@@ -232,45 +151,65 @@ export default function ChatbotPage() {
 
   useEffect(() => {
     if (!token) return;
+
     const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
     const wsUrl = backendUrl.replace('https://', 'wss://').replace('http://', 'ws://');
-    const ws = new WebSocket(`${wsUrl}/ws?token=${encodeURIComponent(token)}`);
-    wsRef.current = ws;
-    
-    ws.onopen = () => {
-      console.log('WebSocket connected');
-    };
-    
-    ws.onmessage = (e) => {
-      console.log('WebSocket message received:', e.data);
-      try {
-        const data = JSON.parse(e.data);
-        if (data?.type === 'ai.reply' && data?.answer) {
-          const pendingId = pendingAiMessageIdRef.current;
-          if (pendingId) {
-            streamAIResponse(pendingId, String(data.answer));
-          } else {
-            const newId = makeMessageId('ai');
-            const ts = new Date().toISOString();
-            setMessages((prev) => [...prev, { id: newId, role: 'ai', text: '', ts, status: 'streaming' }]);
-            streamAIResponse(newId, String(data.answer));
+
+    let disposed = false;
+
+    const connect = () => {
+      if (disposed) return;
+      clearReconnectTimer();
+
+      const ws = new WebSocket(`${wsUrl}/ws?token=${encodeURIComponent(token)}`);
+      wsRef.current = ws;
+
+      ws.onopen = () => {
+        console.log('WebSocket connected');
+      };
+
+      ws.onmessage = (e) => {
+        console.log('WebSocket message received:', e.data);
+        try {
+          const data = JSON.parse(e.data);
+          if (data?.type === 'ai.reply' && data?.answer) {
+            const pendingId = pendingAiMessageIdRef.current;
+            if (pendingId) {
+              streamAIResponse(pendingId, String(data.answer));
+            } else {
+              const newId = makeMessageId('ai');
+              const ts = new Date().toISOString();
+              setMessages((prev) => [...prev, { id: newId, role: 'ai', text: '', ts, status: 'streaming' }]);
+              streamAIResponse(newId, String(data.answer));
+            }
           }
+        } catch (err) {
+          console.error('WebSocket parse error:', err);
         }
-      } catch (err) {
-        console.error('WebSocket parse error:', err);
-      }
+      };
+
+      ws.onerror = (err) => {
+        console.error('WebSocket error:', err);
+      };
+
+      ws.onclose = () => {
+        console.log('WebSocket closed');
+        if (disposed) return;
+        reconnectTimerRef.current = window.setTimeout(() => {
+          connect();
+        }, 2500);
+      };
     };
-    
-    ws.onerror = (err) => {
-      console.error('WebSocket error:', err);
+
+    connect();
+
+    return () => {
+      disposed = true;
+      clearReconnectTimer();
+      wsRef.current?.close();
+      wsRef.current = null;
     };
-    
-    ws.onclose = () => {
-      console.log('WebSocket closed');
-    };
-    
-    return () => ws.close();
-  }, [token, makeMessageId, streamAIResponse]);
+  }, [token, clearReconnectTimer, makeMessageId, streamAIResponse]);
 
   const send = async () => {
     const text = input.trim();
@@ -284,15 +223,11 @@ export default function ChatbotPage() {
     setIsAwaitingAi(true);
     setPendingAiMessageId(thinkingId);
     pendingAiMessageIdRef.current = thinkingId;
-    pendingQuestionRef.current = text;
-    requestStartedAtRef.current = Date.now();
     setMessages((prev) => [
       ...prev,
       { id: userId, role: 'user', text, ts: now, status: 'done' },
       { id: thinkingId, role: 'ai', text: 'AI is thinking...', ts: now, status: 'thinking' },
     ]);
-
-    startReplyFailSafe(thinkingId);
 
     try {
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/chat/ask`, {
@@ -320,13 +255,10 @@ export default function ChatbotPage() {
       }
     } catch (e) {
       console.error('Send error:', e);
-      clearPendingTimers();
       clearStreamTimer();
       setIsAwaitingAi(false);
       setPendingAiMessageId(null);
       pendingAiMessageIdRef.current = null;
-      pendingQuestionRef.current = null;
-      requestStartedAtRef.current = 0;
       setMessages((prev) =>
         prev.map((msg) =>
           msg.id === thinkingId
